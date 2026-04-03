@@ -358,11 +358,6 @@ export const seed = async ({
     data: {
       currency: 'USD',
       customer: customer.id,
-      paymentMethod: 'stripe',
-      stripe: {
-        customerID: 'cus_123',
-        paymentIntentID: 'pi_123',
-      },
       status: 'pending',
       billingAddress: baseAddressUSData,
     },
@@ -373,11 +368,6 @@ export const seed = async ({
     data: {
       currency: 'USD',
       customer: customer.id,
-      paymentMethod: 'stripe',
-      stripe: {
-        customerID: 'cus_123',
-        paymentIntentID: 'pi_123',
-      },
       status: 'succeeded',
       billingAddress: baseAddressUSData,
     },
