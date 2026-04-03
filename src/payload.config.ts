@@ -95,7 +95,7 @@ export default buildConfig({
       ]
     },
   }),
-  cors: [getServerSideURL()].filter(Boolean),
+  cors: '*',
   //email: nodemailerAdapter(),
   endpoints: [],
   globals: [Header, Footer],
