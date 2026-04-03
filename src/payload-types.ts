@@ -76,6 +76,11 @@ export interface Config {
     pages: Page;
     categories: Category;
     media: Media;
+    'product-categories': ProductCategory;
+    'promo-codes': PromoCode;
+    reviews: Review;
+    'promo-slides': PromoSlide;
+    'delivery-zones': DeliveryZone;
     forms: Form;
     'form-submissions': FormSubmission;
     addresses: Address;
@@ -109,6 +114,11 @@ export interface Config {
     pages: PagesSelect<false> | PagesSelect<true>;
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
+    'product-categories': ProductCategoriesSelect<false> | ProductCategoriesSelect<true>;
+    'promo-codes': PromoCodesSelect<false> | PromoCodesSelect<true>;
+    reviews: ReviewsSelect<false> | ReviewsSelect<true>;
+    'promo-slides': PromoSlidesSelect<false> | PromoSlidesSelect<true>;
+    'delivery-zones': DeliveryZonesSelect<false> | DeliveryZonesSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     addresses: AddressesSelect<false> | AddressesSelect<true>;
@@ -1022,6 +1032,86 @@ export interface Address {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "product-categories".
+ */
+export interface ProductCategory {
+  id: number;
+  title: string;
+  /**
+   * When enabled, the slug will auto-generate from the title field on save and autosave.
+   */
+  generateSlug?: boolean | null;
+  slug: string;
+  image?: (number | null) | Media;
+  description?: string | null;
+  sortOrder?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "promo-codes".
+ */
+export interface PromoCode {
+  id: number;
+  code: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  minimumOrder?: number | null;
+  validFrom?: string | null;
+  validUntil?: string | null;
+  usageLimit?: number | null;
+  usageCount?: number | null;
+  active?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "reviews".
+ */
+export interface Review {
+  id: number;
+  customer: string;
+  rating: number;
+  text: string;
+  product?: (number | null) | Product;
+  approved?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "promo-slides".
+ */
+export interface PromoSlide {
+  id: number;
+  title: string;
+  subtitle?: string | null;
+  image: number | Media;
+  buttonText?: string | null;
+  buttonLink?: string | null;
+  active?: boolean | null;
+  sortOrder?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "delivery-zones".
+ */
+export interface DeliveryZone {
+  id: number;
+  zoneName: string;
+  price: number;
+  freeFrom?: number | null;
+  estimatedTime?: string | null;
+  active?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "form-submissions".
  */
 export interface FormSubmission {
@@ -1076,6 +1166,26 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'media';
         value: number | Media;
+      } | null)
+    | ({
+        relationTo: 'product-categories';
+        value: number | ProductCategory;
+      } | null)
+    | ({
+        relationTo: 'promo-codes';
+        value: number | PromoCode;
+      } | null)
+    | ({
+        relationTo: 'reviews';
+        value: number | Review;
+      } | null)
+    | ({
+        relationTo: 'promo-slides';
+        value: number | PromoSlide;
+      } | null)
+    | ({
+        relationTo: 'delivery-zones';
+        value: number | DeliveryZone;
       } | null)
     | ({
         relationTo: 'forms';
@@ -1387,6 +1497,78 @@ export interface MediaSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "product-categories_select".
+ */
+export interface ProductCategoriesSelect<T extends boolean = true> {
+  title?: T;
+  generateSlug?: T;
+  slug?: T;
+  image?: T;
+  description?: T;
+  sortOrder?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "promo-codes_select".
+ */
+export interface PromoCodesSelect<T extends boolean = true> {
+  code?: T;
+  discountType?: T;
+  discountValue?: T;
+  minimumOrder?: T;
+  validFrom?: T;
+  validUntil?: T;
+  usageLimit?: T;
+  usageCount?: T;
+  active?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "reviews_select".
+ */
+export interface ReviewsSelect<T extends boolean = true> {
+  customer?: T;
+  rating?: T;
+  text?: T;
+  product?: T;
+  approved?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "promo-slides_select".
+ */
+export interface PromoSlidesSelect<T extends boolean = true> {
+  title?: T;
+  subtitle?: T;
+  image?: T;
+  buttonText?: T;
+  buttonLink?: T;
+  active?: T;
+  sortOrder?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "delivery-zones_select".
+ */
+export interface DeliveryZonesSelect<T extends boolean = true> {
+  zoneName?: T;
+  price?: T;
+  freeFrom?: T;
+  estimatedTime?: T;
+  active?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

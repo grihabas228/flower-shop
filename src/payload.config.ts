@@ -19,8 +19,13 @@ import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
 import { Categories } from '@/collections/Categories'
+import { DeliveryZones } from '@/collections/DeliveryZones'
 import { Media } from '@/collections/Media'
 import { Pages } from '@/collections/Pages'
+import { ProductCategories } from '@/collections/ProductCategories'
+import { PromoCodes } from '@/collections/PromoCodes'
+import { PromoSlides } from '@/collections/PromoSlides'
+import { Reviews } from '@/collections/Reviews'
 import { Users } from '@/collections/Users'
 import { Footer } from '@/globals/Footer'
 import { Header } from '@/globals/Header'
@@ -37,7 +42,17 @@ export default buildConfig({
     },
     user: Users.slug,
   },
-  collections: [Users, Pages, Categories, Media],
+  collections: [
+    Users,
+    Pages,
+    Categories,
+    Media,
+    ProductCategories,
+    PromoCodes,
+    Reviews,
+    PromoSlides,
+    DeliveryZones,
+  ],
   // PostgreSQL (Neon) — replacing MongoDB from template
   db: postgresAdapter({
     pool: {
