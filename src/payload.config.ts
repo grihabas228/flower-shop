@@ -18,6 +18,7 @@ import path from 'path'
 import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
+import { getServerSideURL } from '@/utilities/getURL'
 import { Categories } from '@/collections/Categories'
 import { DeliveryZones } from '@/collections/DeliveryZones'
 import { Media } from '@/collections/Media'
@@ -99,6 +100,7 @@ export default buildConfig({
   globals: [Header, Footer],
   plugins,
   secret: process.env.PAYLOAD_SECRET || '',
+  serverURL: getServerSideURL(),
   sharp,
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
