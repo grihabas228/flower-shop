@@ -173,7 +173,7 @@ export function HeaderClient({ header }: Props) {
                     : pathname === link.href
 
                 return (
-                  <li key={link.id || link.href}>
+                  <li key={link.href}>
                     <Link
                       href={link.href}
                       className={cn(
