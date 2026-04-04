@@ -96,6 +96,10 @@ export default buildConfig({
     },
   }),
   cors: '*',
+  csrf: [
+    getServerSideURL(),
+    'https://flower-shop-drab-eight.vercel.app',
+  ].filter(Boolean),
   //email: nodemailerAdapter(),
   endpoints: [],
   globals: [Header, Footer],
