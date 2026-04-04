@@ -1,4 +1,6 @@
 import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
+import { redirectsPlugin } from '@payloadcms/plugin-redirects'
+import { searchPlugin } from '@payloadcms/plugin-search'
 import { seoPlugin } from '@payloadcms/plugin-seo'
 import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob'
 import { Plugin } from 'payload'
@@ -81,6 +83,27 @@ export const plugins: Plugin[] = [
           }
           return field
         })
+      },
+    },
+  }),
+  searchPlugin({
+    collections: ['products', 'pages'],
+    defaultPriorities: {
+      products: 10,
+      pages: 20,
+    },
+    searchOverrides: {
+      admin: {
+        group: 'System',
+      },
+    },
+  }),
+  redirectsPlugin({
+    collections: ['pages', 'products'],
+    redirectTypes: ['301', '302'],
+    overrides: {
+      admin: {
+        group: 'System',
       },
     },
   }),
