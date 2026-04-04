@@ -43,7 +43,7 @@ export function HeaderClient({ header }: Props) {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-50">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-[#faf5f0]">
         {/* Top Info Bar */}
         <AnimatePresence>
           {!isScrolled && (
@@ -82,11 +82,7 @@ export function HeaderClient({ header }: Props) {
         </AnimatePresence>
 
         {/* Main Header */}
-        <motion.div
-          animate={{ backgroundColor: '#faf5f0' }}
-          transition={{ duration: 0.3 }}
-          className="border-b border-[#e8e4de]/50"
-        >
+        <div className="border-b border-[#e8e4de]/50 bg-[#faf5f0]">
           <div className="mx-auto max-w-7xl px-4">
             <div
               className={cn(
@@ -160,7 +156,7 @@ export function HeaderClient({ header }: Props) {
               </div>
             </div>
           </div>
-        </motion.div>
+        </div>
 
         {/* Navigation Bar - Desktop */}
         <nav className="hidden border-b border-[#e8e4de]/30 bg-[#faf5f0] lg:block">
