@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { AdminBar } from '@/components/AdminBar'
 import { Footer } from '@/components/Footer'
 import { Header } from '@/components/Header'
+import { MobileBottomNav } from '@/components/MobileBottomNav'
 import { LivePreviewListener } from '@/components/LivePreviewListener'
 import { Providers } from '@/providers'
 import { InitTheme } from '@/providers/Theme/InitTheme'
@@ -40,8 +41,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <LivePreviewListener />
 
           <Header />
-          <main>{children}</main>
+          <main className="pb-16 md:pb-0">{children}</main>
           <Footer />
+          <MobileBottomNav />
         </Providers>
       </body>
     </html>
