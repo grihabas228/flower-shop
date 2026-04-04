@@ -1,6 +1,4 @@
-import { Button } from '@/components/ui/button'
-import clsx from 'clsx'
-import { ShoppingCart } from 'lucide-react'
+import { ShoppingBag } from 'lucide-react'
 import React from 'react'
 
 export function OpenCartButton({
@@ -10,22 +8,19 @@ export function OpenCartButton({
 }: {
   className?: string
   quantity?: number
-}) {
+} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <Button
-      variant="nav"
-      size="clear"
-      className="navLink relative items-end hover:cursor-pointer"
+    <button
+      className="relative p-2 text-[#2d2d2d] transition-colors hover:text-[#5a5a5a]"
+      aria-label="Корзина"
       {...rest}
     >
-      <span>Cart</span>
-
+      <ShoppingBag className="h-5 w-5" strokeWidth={1.5} />
       {quantity ? (
-        <>
-          <span>•</span>
-          <span>{quantity}</span>
-        </>
+        <span className="absolute -right-0 -top-0 flex h-4 w-4 items-center justify-center rounded-full bg-[#e8b4b8] text-[10px] font-medium text-white">
+          {quantity}
+        </span>
       ) : null}
-    </Button>
+    </button>
   )
 }
