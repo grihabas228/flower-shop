@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { Search, Heart, User, ShoppingBag, MapPin, Phone, Clock, Menu } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/utilities/cn'
-import { CMSLink } from '@/components/Link'
 import { Cart } from '@/components/Cart'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -13,12 +12,39 @@ import React, { Suspense } from 'react'
 import { MobileMenu } from './MobileMenu'
 import type { Header } from 'src/payload-types'
 
+const defaultNavLinks = [
+  { label: 'Букеты', href: '/bukety' },
+  { label: 'Розы', href: '/rozy' },
+  { label: 'Композиции', href: '/kompozicii' },
+  { label: 'Подарки', href: '/podarki' },
+  { label: 'Акции', href: '/akcii' },
+  { label: 'О нас', href: '/about' },
+  { label: 'Доставка', href: '/delivery' },
+]
+
+type NavLink = { label: string; href: string; id?: string }
+
+function resolveNavLinks(navItems: Header['navItems']): NavLink[] {
+  if (!navItems?.length) return defaultNavLinks
+
+  return navItems.map((item) => {
+    const href =
+      item.link.type === 'reference' &&
+      typeof item.link.reference?.value === 'object' &&
+      item.link.reference.value.slug
+        ? `/${item.link.reference.value.slug}`
+        : item.link.url || '#'
+
+    return { label: item.link.label, href, id: item.id || undefined }
+  })
+}
+
 type Props = {
   header: Header
 }
 
 export function HeaderClient({ header }: Props) {
-  const navItems = header.navItems || []
+  const navLinks = resolveNavLinks(header.navItems)
   const pathname = usePathname()
   const [isScrolled, setIsScrolled] = useState(false)
 
@@ -86,7 +112,7 @@ export function HeaderClient({ header }: Props) {
               {/* Mobile Menu Button */}
               <div className="lg:hidden">
                 <Suspense fallback={null}>
-                  <MobileMenu menu={navItems} />
+                  <MobileMenu navLinks={navLinks} />
                 </Suspense>
               </div>
 
@@ -155,27 +181,22 @@ export function HeaderClient({ header }: Props) {
         <nav className="hidden border-b border-[#e8e4de]/30 bg-[#faf5f0] lg:block">
           <div className="mx-auto max-w-7xl px-4">
             <ul className="flex h-12 items-center justify-center gap-10">
-              {navItems.map((item) => {
-                const href =
-                  item.link.type === 'reference' &&
-                  typeof item.link.reference?.value === 'object' &&
-                  item.link.reference.value.slug
-                    ? `/${item.link.reference.value.slug}`
-                    : item.link.url || '#'
-
+              {navLinks.map((link) => {
                 const isActive =
-                  href !== '#' && href !== '/' ? pathname.startsWith(href) : pathname === href
+                  link.href !== '#' && link.href !== '/'
+                    ? pathname.startsWith(link.href)
+                    : pathname === link.href
 
                 return (
-                  <li key={item.id}>
+                  <li key={link.id || link.href}>
                     <Link
-                      href={href}
+                      href={link.href}
                       className={cn(
                         'relative py-1 font-sans text-[13px] uppercase tracking-[0.08em] text-[#5a5a5a] transition-colors hover:text-[#2d2d2d]',
                         isActive && 'text-[#2d2d2d]',
                       )}
                     >
-                      {item.link.label}
+                      {link.label}
                       {isActive && (
                         <motion.span
                           layoutId="nav-underline"

@@ -1,7 +1,5 @@
 'use client'
 
-import type { Header } from '@/payload-types'
-
 import { Search, Heart, User, X, MapPin, Phone, Clock } from 'lucide-react'
 import { Menu } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -11,11 +9,13 @@ import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 
+type NavLink = { label: string; href: string; id?: string }
+
 interface Props {
-  menu: Header['navItems']
+  navLinks: NavLink[]
 }
 
-export function MobileMenu({ menu }: Props) {
+export function MobileMenu({ navLinks }: Props) {
   const { user } = useAuth()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -112,28 +112,23 @@ export function MobileMenu({ menu }: Props) {
               {/* Navigation Links */}
               <nav className="py-4">
                 <ul>
-                  {menu?.map((item) => {
-                    const href =
-                      item.link.type === 'reference' &&
-                      typeof item.link.reference?.value === 'object' &&
-                      item.link.reference.value.slug
-                        ? `/${item.link.reference.value.slug}`
-                        : item.link.url || '#'
-
+                  {navLinks.map((link) => {
                     const isActive =
-                      href !== '#' && href !== '/' ? pathname.startsWith(href) : pathname === href
+                      link.href !== '#' && link.href !== '/'
+                        ? pathname.startsWith(link.href)
+                        : pathname === link.href
 
                     return (
-                      <li key={item.id}>
+                      <li key={link.id || link.href}>
                         <Link
-                          href={href}
+                          href={link.href}
                           onClick={() => setIsOpen(false)}
                           className={cn(
                             'block px-6 py-3 font-sans text-[14px] uppercase tracking-[0.08em] text-[#5a5a5a] transition-colors hover:bg-[#f0ebe3] hover:text-[#2d2d2d]',
                             isActive && 'bg-[#f0ebe3] text-[#2d2d2d]',
                           )}
                         >
-                          {item.link.label}
+                          {link.label}
                         </Link>
                       </li>
                     )
