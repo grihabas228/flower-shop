@@ -22,29 +22,14 @@ const defaultNavLinks = [
   { label: 'Доставка', href: '/delivery' },
 ]
 
-type NavLink = { label: string; href: string; id?: string }
-
-function resolveNavLinks(navItems: Header['navItems']): NavLink[] {
-  if (!navItems?.length) return defaultNavLinks
-
-  return navItems.map((item) => {
-    const href =
-      item.link.type === 'reference' &&
-      typeof item.link.reference?.value === 'object' &&
-      item.link.reference.value.slug
-        ? `/${item.link.reference.value.slug}`
-        : item.link.url || '#'
-
-    return { label: item.link.label, href, id: item.id || undefined }
-  })
-}
+type NavLink = { label: string; href: string }
 
 type Props = {
   header: Header
 }
 
 export function HeaderClient({ header }: Props) {
-  const navLinks = resolveNavLinks(header.navItems)
+  const navLinks = defaultNavLinks
   const pathname = usePathname()
   const [isScrolled, setIsScrolled] = useState(false)
 
