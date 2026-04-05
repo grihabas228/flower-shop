@@ -1,311 +1,432 @@
 'use client'
 
 import { Media } from '@/components/Media'
-import { Message } from '@/components/Message'
 import { Price } from '@/components/Price'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { useAuth } from '@/providers/Auth'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
+import { useCart } from '@payloadcms/plugin-ecommerce/client/react'
+import { Gift, ChevronRight, Clock, MapPin, User, Mail, Phone, FileText } from 'lucide-react'
 
-import { useAddresses, useCart } from '@payloadcms/plugin-ecommerce/client/react'
-import { CheckoutAddresses } from '@/components/checkout/CheckoutAddresses'
-import { CreateAddressModal } from '@/components/addresses/CreateAddressModal'
-import { Address } from '@/payload-types'
-import { Checkbox } from '@/components/ui/checkbox'
-import { AddressItem } from '@/components/addresses/AddressItem'
-import { FormItem } from '@/components/forms/FormItem'
+const timeSlots = [
+  { id: 'morning', label: 'Утро', time: '9:00 — 12:00' },
+  { id: 'day', label: 'День', time: '12:00 — 18:00' },
+  { id: 'evening', label: 'Вечер', time: '18:00 — 22:00' },
+]
 
 export const CheckoutPage: React.FC = () => {
   const { user } = useAuth()
   const router = useRouter()
   const { cart } = useCart()
-  const [error] = useState<null | string>(null)
-  const [email, setEmail] = useState('')
-  const [emailEditable, setEmailEditable] = useState(true)
-  const { addresses } = useAddresses()
-  const [shippingAddress, setShippingAddress] = useState<Partial<Address>>()
-  const [billingAddress, setBillingAddress] = useState<Partial<Address>>()
-  const [billingAddressSameAsShipping, setBillingAddressSameAsShipping] = useState(true)
+
+  const [recipientName, setRecipientName] = useState('')
+  const [recipientPhone, setRecipientPhone] = useState('')
+  const [recipientEmail, setRecipientEmail] = useState('')
+  const [city] = useState('Москва')
+  const [street, setStreet] = useState('')
+  const [house, setHouse] = useState('')
+  const [apartment, setApartment] = useState('')
+  const [deliveryDate, setDeliveryDate] = useState('')
+  const [timeSlot, setTimeSlot] = useState('day')
+  const [greeting, setGreeting] = useState('')
+  const [showGreeting, setShowGreeting] = useState(false)
 
   const cartIsEmpty = !cart || !cart.items || !cart.items.length
 
   useEffect(() => {
-    if (!shippingAddress) {
-      if (addresses && addresses.length > 0) {
-        const defaultAddress = addresses[0]
-        if (defaultAddress) {
-          setBillingAddress(defaultAddress)
-        }
-      }
+    if (user?.email) {
+      setRecipientEmail(user.email)
     }
-  }, [addresses])
-
-  useEffect(() => {
-    return () => {
-      setShippingAddress(undefined)
-      setBillingAddress(undefined)
-      setBillingAddressSameAsShipping(true)
-      setEmail('')
-      setEmailEditable(true)
-    }
-  }, [])
+  }, [user])
 
   if (cartIsEmpty) {
     return (
-      <div className="prose dark:prose-invert py-12 w-full items-center">
-        <p>Ваша корзина пуста.</p>
-        <Link href="/search">Продолжить покупки?</Link>
+      <div className="min-h-[60vh] flex flex-col items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <h1 className="font-serif text-3xl text-foreground mb-4">Корзина пуста</h1>
+          <p className="text-muted-foreground mb-8 text-sm">Добавьте товары для оформления заказа</p>
+          <Link
+            href="/shop"
+            className="inline-flex items-center gap-2 bg-accent text-accent-foreground px-8 py-3.5 rounded-full text-sm font-medium tracking-wide hover:bg-accent/90 transition-colors"
+          >
+            Перейти в каталог
+            <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
       </div>
     )
   }
 
+  // Calculate delivery cost (placeholder)
+  const deliveryCost = 500
+  const subtotal = cart?.subtotal || 0
+  const total = subtotal + deliveryCost
+  const bonusPoints = Math.round(total * 0.05)
+
+  // Get today's date as min for date picker
+  const today = new Date().toISOString().split('T')[0]
+
   return (
-    <div className="flex flex-col items-stretch justify-stretch my-8 md:flex-row grow gap-10 md:gap-6 lg:gap-8">
-      <div className="basis-full lg:basis-2/3 flex flex-col gap-8 justify-stretch">
-        <h2 className="font-medium text-3xl">Контакт</h2>
-        {!user && (
-          <div className="bg-accent dark:bg-black rounded-lg p-4 w-full flex items-center">
-            <div className="prose dark:prose-invert">
-              <Button asChild className="no-underline text-inherit" variant="outline">
-                <Link href="/login">Войти</Link>
-              </Button>
-              <p className="mt-0">
-                <span className="mx-2">или</span>
-                <Link href="/create-account">создать аккаунт</Link>
-              </p>
+    <div className="container py-8 md:py-12">
+      {/* Breadcrumbs */}
+      <nav className="flex items-center gap-2 text-xs tracking-wider uppercase text-muted-foreground mb-8">
+        <Link href="/" className="hover:text-foreground transition-colors">
+          Главная
+        </Link>
+        <span className="text-border">/</span>
+        <Link href="/cart" className="hover:text-foreground transition-colors">
+          Корзина
+        </Link>
+        <span className="text-border">/</span>
+        <span className="text-foreground">Оформление</span>
+      </nav>
+
+      <h1 className="font-serif text-3xl md:text-4xl lg:text-5xl text-foreground mb-10">
+        Оформление заказа
+      </h1>
+
+      <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+        {/* Left column — Form sections */}
+        <div className="flex-1 lg:basis-[65%] space-y-10">
+          {/* Section 1: Recipient */}
+          <section>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 rounded-full bg-accent/15 flex items-center justify-center">
+                <User className="w-4 h-4 text-accent" />
+              </div>
+              <h2 className="font-serif text-xl md:text-2xl text-foreground">Получатель</h2>
             </div>
-          </div>
-        )}
-        {user ? (
-          <div className="bg-accent dark:bg-card rounded-lg p-4">
-            <div>
-              <p>{user.email}</p>
-              <p>
-                Не вы?{' '}
-                <Link className="underline" href="/logout">
-                  Выйти
-                </Link>
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-accent dark:bg-black rounded-lg p-4">
-            <div>
-              <p className="mb-4">Введите email для оформления заказа без регистрации.</p>
-              <FormItem className="mb-6">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  disabled={!emailEditable}
-                  id="email"
-                  name="email"
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  type="email"
-                />
-              </FormItem>
-              <Button
-                disabled={!email || !emailEditable}
-                onClick={(e) => {
-                  e.preventDefault()
-                  setEmailEditable(false)
-                }}
-                variant="default"
-              >
-                Продолжить как гость
-              </Button>
-            </div>
-          </div>
-        )}
 
-        <h2 className="font-medium text-3xl">Адрес</h2>
-
-        {billingAddress ? (
-          <div>
-            <AddressItem
-              actions={
-                <Button
-                  variant={'outline'}
-                  onClick={(e) => {
-                    e.preventDefault()
-                    setBillingAddress(undefined)
-                  }}
-                >
-                  Удалить
-                </Button>
-              }
-              address={billingAddress}
-            />
-          </div>
-        ) : user ? (
-          <CheckoutAddresses heading="Адрес оплаты" setAddress={setBillingAddress} />
-        ) : (
-          <CreateAddressModal
-            disabled={!email || Boolean(emailEditable)}
-            callback={(address) => {
-              setBillingAddress(address)
-            }}
-            skipSubmission={true}
-          />
-        )}
-
-        <div className="flex gap-4 items-center">
-          <Checkbox
-            id="shippingTheSameAsBilling"
-            checked={billingAddressSameAsShipping}
-            disabled={!user && (!email || Boolean(emailEditable))}
-            onCheckedChange={(state) => {
-              setBillingAddressSameAsShipping(state as boolean)
-            }}
-          />
-          <Label htmlFor="shippingTheSameAsBilling">Адрес доставки совпадает с адресом оплаты</Label>
-        </div>
-
-        {!billingAddressSameAsShipping && (
-          <>
-            {shippingAddress ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <AddressItem
-                  actions={
-                    <Button
-                      variant={'outline'}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        setShippingAddress(undefined)
-                      }}
-                    >
-                      Удалить
-                    </Button>
-                  }
-                  address={shippingAddress}
+                <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
+                  Имя
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={recipientName}
+                    onChange={(e) => setRecipientName(e.target.value)}
+                    placeholder="Имя получателя"
+                    className="w-full bg-background border border-border rounded-xl px-4 py-3.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
+                  Телефон
+                </label>
+                <div className="relative">
+                  <input
+                    type="tel"
+                    value={recipientPhone}
+                    onChange={(e) => setRecipientPhone(e.target.value)}
+                    placeholder="+7 (___) ___-__-__"
+                    className="w-full bg-background border border-border rounded-xl px-4 py-3.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
+                  Email
+                </label>
+                <div className="relative">
+                  <input
+                    type="email"
+                    value={recipientEmail}
+                    onChange={(e) => setRecipientEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    className="w-full bg-background border border-border rounded-xl px-4 py-3.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Divider */}
+          <div className="border-t border-border" />
+
+          {/* Section 2: Delivery */}
+          <section>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 rounded-full bg-accent/15 flex items-center justify-center">
+                <MapPin className="w-4 h-4 text-accent" />
+              </div>
+              <h2 className="font-serif text-xl md:text-2xl text-foreground">Доставка</h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="md:col-span-2">
+                <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
+                  Город
+                </label>
+                <input
+                  type="text"
+                  value={city}
+                  disabled
+                  className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3.5 text-sm text-muted-foreground cursor-not-allowed"
                 />
               </div>
-            ) : user ? (
-              <CheckoutAddresses
-                heading="Адрес доставки"
-                description="Пожалуйста, выберите адрес доставки."
-                setAddress={setShippingAddress}
-              />
-            ) : (
-              <CreateAddressModal
-                callback={(address) => {
-                  setShippingAddress(address)
-                }}
-                disabled={!email || Boolean(emailEditable)}
-                skipSubmission={true}
-              />
-            )}
-          </>
-        )}
 
-        {/* Payment via ЮKassa will be implemented in Phase 4 */}
-        <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-          <p>Оплата через ЮKassa будет подключена в следующем обновлении.</p>
-        </div>
+              <div className="md:col-span-2">
+                <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
+                  Улица
+                </label>
+                <input
+                  type="text"
+                  value={street}
+                  onChange={(e) => setStreet(e.target.value)}
+                  placeholder="Название улицы"
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                />
+              </div>
 
-        {error && (
-          <div className="my-8">
-            <Message error={error} />
-            <Button
-              onClick={(e) => {
-                e.preventDefault()
-                router.refresh()
-              }}
-              variant="default"
-            >
-              Попробовать снова
-            </Button>
-          </div>
-        )}
-      </div>
+              <div>
+                <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
+                  Дом
+                </label>
+                <input
+                  type="text"
+                  value={house}
+                  onChange={(e) => setHouse(e.target.value)}
+                  placeholder="Номер дома"
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                />
+              </div>
 
-      {!cartIsEmpty && (
-        <div className="basis-full lg:basis-1/3 lg:pl-8 p-8 border-none bg-primary/5 flex flex-col gap-8 rounded-lg">
-          <h2 className="text-3xl font-medium">Ваша корзина</h2>
-          {cart?.items?.map((item, index) => {
-            if (typeof item.product === 'object' && item.product) {
-              const {
-                product,
-                product: { id, meta, title, gallery },
-                quantity,
-                variant,
-              } = item
+              <div>
+                <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
+                  Квартира / Офис
+                </label>
+                <input
+                  type="text"
+                  value={apartment}
+                  onChange={(e) => setApartment(e.target.value)}
+                  placeholder="Номер"
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                />
+              </div>
 
-              if (!quantity) return null
+              <div>
+                <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
+                  Дата доставки
+                </label>
+                <input
+                  type="date"
+                  value={deliveryDate}
+                  onChange={(e) => setDeliveryDate(e.target.value)}
+                  min={today}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all [color-scheme:light]"
+                />
+              </div>
 
-              let image = gallery?.[0]?.image || meta?.image
-              let price = product?.priceInUSD
-
-              const isVariant = Boolean(variant) && typeof variant === 'object'
-
-              if (isVariant) {
-                price = variant?.priceInUSD
-
-                const imageVariant = product.gallery?.find((item: any) => {
-                  if (!item.variantOption) return false
-                  const variantOptionID =
-                    typeof item.variantOption === 'object'
-                      ? item.variantOption.id
-                      : item.variantOption
-
-                  const hasMatch = variant?.options?.some((option: any) => {
-                    if (typeof option === 'object') return option.id === variantOptionID
-                    else return option === variantOptionID
-                  })
-
-                  return hasMatch
-                })
-
-                if (imageVariant && typeof imageVariant.image !== 'string') {
-                  image = imageVariant.image
-                }
-              }
-
-              return (
-                <div className="flex items-start gap-4" key={index}>
-                  <div className="flex items-stretch justify-stretch h-20 w-20 p-2 rounded-lg border">
-                    <div className="relative w-full h-full">
-                      {image && typeof image !== 'string' && (
-                        <Media className="" fill imgClassName="rounded-lg" resource={image} />
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex grow justify-between items-center">
-                    <div className="flex flex-col gap-1">
-                      <p className="font-medium text-lg">{title}</p>
-                      {variant && typeof variant === 'object' && (
-                        <p className="text-sm font-mono text-primary/50 tracking-widest">
-                          {variant.options
-                            ?.map((option: any) => {
-                              if (typeof option === 'object') return option.label
-                              return null
-                            })
-                            .join(', ')}
-                        </p>
-                      )}
-                      <div>
-                        {'x'}
-                        {quantity}
-                      </div>
-                    </div>
-
-                    {typeof price === 'number' && <Price amount={price} />}
-                  </div>
+              <div>
+                <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
+                  Время доставки
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {timeSlots.map((slot) => (
+                    <button
+                      key={slot.id}
+                      type="button"
+                      onClick={() => setTimeSlot(slot.id)}
+                      className={`flex flex-col items-center gap-0.5 py-2.5 px-2 rounded-xl border text-center transition-all ${
+                        timeSlot === slot.id
+                          ? 'border-accent bg-accent/10 text-accent'
+                          : 'border-border text-muted-foreground hover:border-foreground/20'
+                      }`}
+                    >
+                      <span className="text-xs font-medium">{slot.label}</span>
+                      <span className="text-[10px] opacity-70">{slot.time}</span>
+                    </button>
+                  ))}
                 </div>
-              )
-            }
-            return null
-          })}
-          <hr />
-          <div className="flex justify-between items-center gap-2">
-            <span className="uppercase">Итого</span>{' '}
-            <Price className="text-3xl font-medium" amount={cart.subtotal || 0} />
+              </div>
+            </div>
+          </section>
+
+          {/* Divider */}
+          <div className="border-t border-border" />
+
+          {/* Section 3: Greeting card */}
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-accent/15 flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-accent" />
+                </div>
+                <h2 className="font-serif text-xl md:text-2xl text-foreground">Открытка</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGreeting(!showGreeting)}
+                className="text-sm text-accent hover:text-accent/80 transition-colors"
+              >
+                {showGreeting ? 'Убрать' : 'Добавить'}
+              </button>
+            </div>
+
+            {showGreeting && (
+              <div>
+                <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
+                  Текст поздравления
+                </label>
+                <textarea
+                  value={greeting}
+                  onChange={(e) => setGreeting(e.target.value)}
+                  placeholder="Напишите пожелание для получателя..."
+                  rows={4}
+                  maxLength={500}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all resize-none"
+                />
+                <p className="text-[11px] text-muted-foreground mt-2 text-right">
+                  {greeting.length}/500
+                </p>
+              </div>
+            )}
+
+            {!showGreeting && (
+              <p className="text-sm text-muted-foreground">
+                Добавьте поздравление — мы вложим открытку в букет
+              </p>
+            )}
+          </section>
+        </div>
+
+        {/* Right column — Order summary sidebar */}
+        <div className="lg:basis-[35%] lg:shrink-0">
+          <div className="lg:sticky lg:top-8 space-y-6">
+            <div className="bg-secondary/50 rounded-2xl p-6 space-y-5">
+              <h3 className="font-serif text-lg text-foreground">Ваш заказ</h3>
+
+              {/* Cart items */}
+              <div className="space-y-4">
+                {cart?.items?.map((item, index) => {
+                  if (typeof item.product === 'object' && item.product) {
+                    const {
+                      product,
+                      product: { meta, title, gallery },
+                      quantity,
+                      variant,
+                    } = item
+
+                    if (!quantity) return null
+
+                    let image = gallery?.[0]?.image || meta?.image
+                    let price = product?.priceInUSD
+
+                    const isVariant = Boolean(variant) && typeof variant === 'object'
+
+                    if (isVariant) {
+                      price = variant?.priceInUSD
+
+                      const imageVariant = product.gallery?.find((galleryItem: any) => {
+                        if (!galleryItem.variantOption) return false
+                        const variantOptionID =
+                          typeof galleryItem.variantOption === 'object'
+                            ? galleryItem.variantOption.id
+                            : galleryItem.variantOption
+
+                        const hasMatch = variant?.options?.some((option: any) => {
+                          if (typeof option === 'object') return option.id === variantOptionID
+                          else return option === variantOptionID
+                        })
+
+                        return hasMatch
+                      })
+
+                      if (imageVariant && typeof imageVariant.image !== 'string') {
+                        image = imageVariant.image
+                      }
+                    }
+
+                    return (
+                      <div className="flex items-center gap-3" key={index}>
+                        <div className="w-14 h-14 rounded-lg overflow-hidden bg-background shrink-0">
+                          {image && typeof image !== 'string' && (
+                            <div className="relative w-full h-full">
+                              <Media fill imgClassName="rounded-lg object-cover" resource={image} />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-foreground truncate">{title}</p>
+                          <p className="text-xs text-muted-foreground">x{quantity}</p>
+                        </div>
+                        {typeof price === 'number' && (
+                          <Price
+                            amount={price * quantity}
+                            className="text-sm font-medium text-foreground shrink-0"
+                          />
+                        )}
+                      </div>
+                    )
+                  }
+                  return null
+                })}
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-border" />
+
+              {/* Summary lines */}
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Товары</span>
+                  <Price amount={subtotal} className="text-foreground" />
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Доставка</span>
+                  <span className="text-foreground">{deliveryCost} &#8381;</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Промокод</span>
+                  <span className="text-foreground">—</span>
+                </div>
+              </div>
+
+              {/* Bonus points */}
+              <div className="flex items-center gap-2 bg-accent/10 rounded-lg px-4 py-2.5">
+                <Gift className="w-4 h-4 text-accent shrink-0" />
+                <p className="text-xs text-accent">
+                  Будет начислено <span className="font-semibold">{bonusPoints} бонусов</span>
+                </p>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-border" />
+
+              {/* Total */}
+              <div className="flex justify-between items-center">
+                <span className="text-xs tracking-[0.12em] uppercase text-muted-foreground font-medium">
+                  Итого
+                </span>
+                <Price
+                  amount={total}
+                  className="font-serif text-2xl text-foreground"
+                />
+              </div>
+            </div>
+
+            {/* Pay button */}
+            <button className="w-full bg-accent text-accent-foreground py-4 rounded-full text-base font-medium tracking-wide hover:bg-accent/90 transition-all hover:shadow-lg active:scale-[0.98]">
+              ОПЛАТИТЬ{' '}
+              <Price amount={total} as="span" className="inline" />
+            </button>
+
+            {/* Delivery info */}
+            <div className="flex items-start gap-2.5 text-xs text-muted-foreground px-1">
+              <Clock className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              <p className="leading-relaxed">
+                Оплата через ЮKassa. После оплаты вы получите подтверждение на email.
+              </p>
+            </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }

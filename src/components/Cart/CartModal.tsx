@@ -174,9 +174,9 @@ export function CartModal() {
                     </div>
                   )}
 
-                  <Button asChild>
-                    <Link className="w-full" href="/checkout">
-                      Оформить заказ
+                  <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-full">
+                    <Link className="w-full" href="/cart">
+                      Перейти в корзину
                     </Link>
                   </Button>
                 </div>

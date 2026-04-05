@@ -6,12 +6,7 @@ import React from 'react'
 import { CheckoutPage } from '@/components/checkout/CheckoutPage'
 
 export default function Checkout() {
-  return (
-    <div className="container min-h-[90vh] flex">
-      <h1 className="sr-only">Оформление заказа</h1>
-      <CheckoutPage />
-    </div>
-  )
+  return <CheckoutPage />
 }
 
 export const metadata: Metadata = {
