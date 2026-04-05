@@ -25,7 +25,8 @@ const benefits = [
 
 export function BenefitsSection() {
   return (
-    <section className="mx-auto max-w-7xl px-4 py-16 lg:py-20">
+    <section className="bg-[#faf5f0] py-16 lg:py-20">
+      <div className="mx-auto max-w-7xl px-4">
       <div className="grid grid-cols-2 gap-6 lg:grid-cols-4 lg:gap-10">
         {benefits.map((benefit) => (
           <div key={benefit.title} className="group text-center">
@@ -43,6 +44,7 @@ export function BenefitsSection() {
             </p>
           </div>
         ))}
+      </div>
       </div>
     </section>
   )

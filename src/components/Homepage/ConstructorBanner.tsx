@@ -3,7 +3,8 @@ import { Sparkles } from 'lucide-react'
 
 export function ConstructorBanner() {
   return (
-    <section className="mx-auto max-w-7xl px-4 py-8">
+    <section className="bg-white py-8">
+      <div className="mx-auto max-w-7xl px-4">
       <div className="relative overflow-hidden rounded-2xl border border-[#e8e4de]/60 bg-[#f5f0ea]">
         {/* Decorative pattern */}
         <div
@@ -40,6 +41,7 @@ export function ConstructorBanner() {
             </svg>
           </Link>
         </div>
+      </div>
       </div>
     </section>
   )

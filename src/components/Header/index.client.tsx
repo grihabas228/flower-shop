@@ -43,7 +43,7 @@ export function HeaderClient({ header }: Props) {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#faf5f0]">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-[#faf5f0] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
         {/* Top Info Bar */}
         <AnimatePresence>
           {!isScrolled && (

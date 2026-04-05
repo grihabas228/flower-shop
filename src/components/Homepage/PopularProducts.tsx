@@ -42,7 +42,8 @@ export function PopularProducts({ products }: Props) {
   if (products.length === 0) return null
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-10 lg:py-14">
+    <section className="bg-white py-10 lg:py-14">
+      <div className="mx-auto max-w-7xl px-4">
       <div className="mb-6 flex items-end justify-between lg:mb-8">
         <h2 className="font-serif text-xl text-[#2d2d2d] lg:text-2xl">
           Популярные букеты
@@ -59,6 +60,7 @@ export function PopularProducts({ products }: Props) {
         {products.map((product) => (
           <ProductCard key={product.id} product={product} />
         ))}
+      </div>
       </div>
     </section>
   )

@@ -61,7 +61,8 @@ export function ReviewsCarousel({ reviews }: Props) {
   }, [emblaApi, onSelect])
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-12 lg:py-16">
+    <section className="bg-[#faf5f0] py-12 lg:py-16">
+      <div className="mx-auto max-w-7xl px-4">
       <div className="mb-6 flex items-end justify-between lg:mb-8">
         <h2 className="font-serif text-xl text-[#2d2d2d] lg:text-2xl">
           Отзывы наших клиентов
@@ -121,6 +122,7 @@ export function ReviewsCarousel({ reviews }: Props) {
             </motion.div>
           ))}
         </div>
+      </div>
       </div>
     </section>
   )
