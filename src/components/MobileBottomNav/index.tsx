@@ -13,9 +13,10 @@ import {
   Clock,
 } from 'lucide-react'
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import { useCart } from '@payloadcms/plugin-ecommerce/client/react'
 import { useAuth } from '@/providers/Auth'
+import { AuthModal } from '@/components/AuthModal'
 import { cn } from '@/utilities/cn'
 import { motion, AnimatePresence } from 'framer-motion'
 import React, { useMemo, useState, useEffect, Suspense } from 'react'
@@ -39,8 +40,20 @@ const navItems = [
 
 function BottomNavInner() {
   const pathname = usePathname()
+  const router = useRouter()
   const { cart } = useCart()
+  const { user } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+
+  const handleAccountClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (user) {
+      router.push('/account')
+    } else {
+      setShowAuthModal(true)
+    }
+  }
 
   const totalQuantity = useMemo(() => {
     if (!cart?.items?.length) return 0
@@ -60,16 +73,10 @@ function BottomNavInner() {
             const active = isActive(item.href)
             const Icon = item.icon
             const badge = item.hasBadge ? totalQuantity : 0
+            const isAccount = item.href === '/account'
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'relative flex flex-1 flex-col items-center justify-center gap-0.5 transition-colors',
-                  active ? 'text-[#e8b4b8]' : 'text-[#9a9a9a]',
-                )}
-              >
+            const content = (
+              <>
                 <span className="relative">
                   <Icon className="h-[22px] w-[22px]" strokeWidth={active ? 1.8 : 1.5} />
                   {badge > 0 && (
@@ -86,6 +93,34 @@ function BottomNavInner() {
                 >
                   {item.label}
                 </span>
+              </>
+            )
+
+            if (isAccount) {
+              return (
+                <button
+                  key={item.href}
+                  onClick={handleAccountClick}
+                  className={cn(
+                    'relative flex flex-1 flex-col items-center justify-center gap-0.5 transition-colors cursor-pointer',
+                    active ? 'text-[#e8b4b8]' : 'text-[#9a9a9a]',
+                  )}
+                >
+                  {content}
+                </button>
+              )
+            }
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'relative flex flex-1 flex-col items-center justify-center gap-0.5 transition-colors',
+                  active ? 'text-[#e8b4b8]' : 'text-[#9a9a9a]',
+                )}
+              >
+                {content}
               </Link>
             )
           })}
@@ -105,6 +140,8 @@ function BottomNavInner() {
       <AnimatePresence>
         {menuOpen && <MenuDrawer onClose={() => setMenuOpen(false)} />}
       </AnimatePresence>
+
+      <AuthModal open={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </>
   )
 }

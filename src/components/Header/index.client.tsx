@@ -5,8 +5,10 @@ import { Search, Heart, User, ShoppingBag, MapPin, Phone, Clock, Menu } from 'lu
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/utilities/cn'
 import { Cart } from '@/components/Cart'
+import { AuthModal } from '@/components/AuthModal'
+import { useAuth } from '@/providers/Auth'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import React, { Suspense } from 'react'
 
 import { MobileMenu } from './MobileMenu'
@@ -31,7 +33,18 @@ type Props = {
 export function HeaderClient({ header }: Props) {
   const navLinks = defaultNavLinks
   const pathname = usePathname()
+  const router = useRouter()
+  const { user } = useAuth()
   const [isScrolled, setIsScrolled] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+
+  const handleAccountClick = () => {
+    if (user) {
+      router.push('/account')
+    } else {
+      setShowAuthModal(true)
+    }
+  }
 
   useEffect(() => {
     const handleScroll = () => {
@@ -135,13 +148,13 @@ export function HeaderClient({ header }: Props) {
                   <Search className="h-5 w-5" strokeWidth={1.5} />
                 </button>
 
-                <Link
-                  href="/account"
-                  className="hidden p-2 text-[#2d2d2d] transition-colors hover:text-[#5a5a5a] sm:block"
+                <button
+                  onClick={handleAccountClick}
+                  className="hidden p-2 text-[#2d2d2d] transition-colors hover:text-[#5a5a5a] sm:block cursor-pointer"
                   aria-label="Аккаунт"
                 >
                   <User className="h-5 w-5" strokeWidth={1.5} />
-                </Link>
+                </button>
 
                 {/* Cart */}
                 <Suspense
@@ -201,6 +214,8 @@ export function HeaderClient({ header }: Props) {
           isScrolled ? 'h-[66px]' : 'h-[114px] lg:h-[162px]',
         )}
       />
+
+      <AuthModal open={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </>
   )
 }
