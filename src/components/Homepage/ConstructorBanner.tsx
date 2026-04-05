@@ -4,10 +4,10 @@ import { Sparkles } from 'lucide-react'
 export function ConstructorBanner() {
   return (
     <section className="mx-auto max-w-7xl px-4 py-8">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#2d2d2d] to-[#3d3d3d]">
+      <div className="relative overflow-hidden rounded-2xl border border-[#e8e4de]/60 bg-[#f5f0ea]">
         {/* Decorative pattern */}
         <div
-          className="absolute inset-0 opacity-[0.04]"
+          className="absolute inset-0 opacity-[0.06]"
           style={{
             backgroundImage: `radial-gradient(circle at 20% 50%, #e8b4b8 1px, transparent 1px), radial-gradient(circle at 80% 20%, #e8b4b8 1px, transparent 1px)`,
             backgroundSize: '40px 40px, 60px 60px',
@@ -16,17 +16,17 @@ export function ConstructorBanner() {
 
         {/* Gradient accent */}
         <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[#e8b4b8]/10 blur-3xl" />
-        <div className="absolute -bottom-10 -left-10 h-48 w-48 rounded-full bg-[#e8b4b8]/5 blur-3xl" />
+        <div className="absolute -bottom-10 -left-10 h-48 w-48 rounded-full bg-[#e8b4b8]/8 blur-3xl" />
 
         <div className="relative flex flex-col items-center px-6 py-14 text-center sm:py-16 lg:py-20">
-          <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-[#e8b4b8]/20">
+          <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-[#e8b4b8]/15">
             <Sparkles className="h-5 w-5 text-[#e8b4b8]" strokeWidth={1.3} />
           </div>
 
-          <h2 className="mb-3 font-serif text-2xl tracking-wide text-[#faf5f0] sm:text-3xl lg:text-[34px]">
+          <h2 className="mb-3 font-serif text-2xl tracking-wide text-[#2d2d2d] sm:text-3xl lg:text-[34px]">
             Собери свой идеальный букет
           </h2>
-          <p className="mb-8 max-w-md font-sans text-[14px] leading-relaxed text-[#8a8a8a]">
+          <p className="mb-8 max-w-md font-sans text-[14px] leading-relaxed text-[#5a5a5a]">
             Выберите цветы, упаковку и ленту — мы соберём уникальный букет специально для вас
           </p>
 

@@ -35,10 +35,10 @@ export function BenefitsSection() {
                 strokeWidth={1.3}
               />
             </div>
-            <h3 className="mb-1.5 font-serif text-[15px] text-[#2d2d2d] lg:text-base">
+            <h3 className="mb-1.5 font-serif text-[16px] font-medium text-[#2d2d2d] lg:text-[17px]">
               {benefit.title}
             </h3>
-            <p className="font-sans text-[12px] leading-relaxed text-[#8a8a8a] lg:text-[13px]">
+            <p className="font-sans text-[12px] leading-relaxed text-[#6b6b6b] lg:text-[13px]">
               {benefit.description}
             </p>
           </div>
