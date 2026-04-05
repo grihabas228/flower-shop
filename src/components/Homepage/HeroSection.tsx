@@ -6,6 +6,7 @@ import { MapPin, Clock, Truck, ChevronLeft, ChevronRight } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { YandexMap } from '@/components/YandexMap'
 
 type PromoSlide = {
   id: number | string
@@ -63,35 +64,30 @@ export function HeroSection({ slides }: Props) {
   return (
     <section className="mx-auto max-w-7xl px-4 pt-6 pb-10 lg:pt-8 lg:pb-14">
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[340px_1fr] xl:grid-cols-[380px_1fr]">
-        {/* Left — Delivery Info Card */}
+        {/* Left — Yandex Map + Delivery Info */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
           className="hidden lg:flex"
         >
-          <div className="flex w-full flex-col justify-between rounded-2xl border border-[#e8e4de] bg-white/60 p-6 backdrop-blur-sm">
-            {/* City */}
-            <div>
-              <div className="mb-5 flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e8b4b8]/15">
-                  <MapPin className="h-4 w-4 text-[#e8b4b8]" strokeWidth={1.5} />
-                </div>
-                <div>
-                  <p className="font-sans text-[13px] text-[#8a8a8a]">Город доставки</p>
-                  <p className="font-sans text-[15px] font-medium text-[#2d2d2d]">
-                    Москва и область
-                  </p>
-                </div>
-              </div>
+          <div className="flex w-full flex-col rounded-2xl border border-[#e8e4de] bg-white/60 overflow-hidden backdrop-blur-sm">
+            {/* Yandex Map */}
+            <div className="relative h-[220px] xl:h-[250px]">
+              <YandexMap
+                center={[55.764, 37.606]}
+                zoom={13}
+                markerCoords={[55.764, 37.606]}
+                markerTitle="FLEUR"
+                markerBody="Москва, ул. Цветочная, д. 12"
+              />
+            </div>
 
-              {/* Decorative divider */}
-              <div className="mb-5 h-px bg-gradient-to-r from-transparent via-[#e8e4de] to-transparent" />
-
-              {/* Delivery info items */}
-              <div className="space-y-4">
+            {/* Delivery info items */}
+            <div className="flex flex-col justify-between flex-1 p-5">
+              <div className="space-y-3.5">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#f0ebe3]">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#f0ebe3]">
                     <Truck className="h-4 w-4 text-[#5a5a5a]" strokeWidth={1.5} />
                   </div>
                   <div>
@@ -101,7 +97,7 @@ export function HeroSection({ slides }: Props) {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#f0ebe3]">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#f0ebe3]">
                     <Clock className="h-4 w-4 text-[#5a5a5a]" strokeWidth={1.5} />
                   </div>
                   <div>
@@ -110,14 +106,13 @@ export function HeroSection({ slides }: Props) {
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Free delivery badge */}
-            <div className="mt-6 rounded-xl bg-gradient-to-br from-[#e8b4b8]/10 to-[#e8b4b8]/5 px-4 py-3.5">
-              <p className="font-sans text-[13px] font-medium text-[#2d2d2d]">
-                Бесплатная доставка
-              </p>
-              <p className="font-sans text-[12px] text-[#8a8a8a]">При заказе от 5 000 &#8381;</p>
+              {/* Free delivery badge */}
+              <div className="mt-4 rounded-xl bg-gradient-to-br from-[#e8b4b8]/10 to-[#e8b4b8]/5 px-4 py-3">
+                <p className="font-sans text-[13px] font-medium text-[#2d2d2d]">
+                  Бесплатная доставка от 5 000 &#8381;
+                </p>
+              </div>
             </div>
           </div>
         </motion.div>
