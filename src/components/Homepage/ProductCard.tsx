@@ -136,7 +136,7 @@ export function ProductCard({ product, deliveryTime = 'от 120 мин' }: Props
         <button
           onClick={handleWishlist}
           className={cn(
-            'absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200',
+            'absolute right-3 top-3 z-10 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full transition-all duration-200',
             isWishlisted
               ? 'bg-[#e8b4b8] text-white shadow-md'
               : 'bg-white/80 text-[#8a8a8a] shadow-sm backdrop-blur-sm hover:bg-white hover:text-[#e8b4b8]',
@@ -172,7 +172,7 @@ export function ProductCard({ product, deliveryTime = 'от 120 мин' }: Props
                 key={variants[i]!.id}
                 onClick={(e) => handleVariantClick(e, i)}
                 className={cn(
-                  'rounded-full px-3 py-1 font-sans text-[11px] transition-all duration-200',
+                  'cursor-pointer rounded-full px-3 py-1 font-sans text-[11px] transition-all duration-200',
                   i === selectedVariantIndex
                     ? 'bg-[#2d2d2d] text-white'
                     : 'bg-[#f0ebe3] text-[#5a5a5a] hover:bg-[#e8e4de]',
@@ -193,7 +193,7 @@ export function ProductCard({ product, deliveryTime = 'от 120 мин' }: Props
           <button
             onClick={handleAddToCart}
             disabled={isLoading}
-            className="flex h-9 items-center gap-1.5 rounded-full bg-[#e8b4b8] px-4 font-sans text-[12px] font-medium text-white transition-all duration-200 hover:bg-[#d9a0a5] hover:shadow-md hover:shadow-[#e8b4b8]/20 disabled:opacity-50"
+            className="flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-[#e8b4b8] px-4 font-sans text-[12px] font-medium text-white transition-all duration-200 hover:bg-[#d9a0a5] hover:shadow-md hover:shadow-[#e8b4b8]/20 disabled:opacity-50"
           >
             <ShoppingBag className="h-3.5 w-3.5" strokeWidth={1.5} />
             <span className="hidden sm:inline">В корзину</span>
