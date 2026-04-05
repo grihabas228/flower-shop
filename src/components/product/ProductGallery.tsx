@@ -103,7 +103,7 @@ export function ProductGallery({ gallery }: Props) {
                     key={`thumb-${item.image.id}-${actualIndex}`}
                     onClick={() => selectImage(actualIndex)}
                     className={cn(
-                      'relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-lg transition-all duration-200 lg:h-[80px] lg:w-[80px]',
+                      'relative h-[72px] w-[72px] cursor-pointer shrink-0 overflow-hidden rounded-lg transition-all duration-200 lg:h-[80px] lg:w-[80px]',
                       actualIndex === current
                         ? 'ring-2 ring-[#2d2d2d] ring-offset-2 ring-offset-[#faf5f0]'
                         : 'opacity-60 hover:opacity-100',
@@ -163,7 +163,7 @@ export function ProductGallery({ gallery }: Props) {
               key={`mobile-thumb-${item.image.id}-${i}`}
               onClick={() => setCurrent(i)}
               className={cn(
-                'relative h-16 w-16 shrink-0 overflow-hidden rounded-lg transition-all duration-200',
+                'relative h-16 w-16 cursor-pointer shrink-0 overflow-hidden rounded-lg transition-all duration-200',
                 i === current
                   ? 'ring-2 ring-[#2d2d2d] ring-offset-1'
                   : 'opacity-60 hover:opacity-100',

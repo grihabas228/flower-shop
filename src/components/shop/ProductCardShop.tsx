@@ -167,7 +167,7 @@ export function ProductCardShop({ product, deliveryTime = 'от 120 мин', bon
         <button
           onClick={handleWishlist}
           className={cn(
-            'absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200',
+            'absolute right-3 top-3 z-10 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full transition-all duration-200',
             isWishlisted
               ? 'bg-[#e8b4b8] text-white shadow-md'
               : 'bg-white/90 text-[#8a8a8a] shadow-sm backdrop-blur-sm hover:bg-white hover:text-[#e8b4b8]',
@@ -203,7 +203,7 @@ export function ProductCardShop({ product, deliveryTime = 'от 120 мин', bon
                 key={variants[i]!.id}
                 onClick={(e) => handleVariantClick(e, i)}
                 className={cn(
-                  'rounded-full border px-3 py-1 font-sans text-[11px] font-medium transition-all duration-200',
+                  'cursor-pointer rounded-full border px-3 py-1 font-sans text-[11px] font-medium transition-all duration-200',
                   i === selectedVariantIndex
                     ? 'border-[#2d2d2d] bg-[#2d2d2d] text-white'
                     : 'border-[#e0dbd4] bg-white text-[#5a5a5a] hover:border-[#c8c3bb]',
@@ -233,7 +233,7 @@ export function ProductCardShop({ product, deliveryTime = 'от 120 мин', bon
             onClick={handleAddToCart}
             disabled={isLoading}
             className={cn(
-              'flex h-9 items-center gap-1.5 rounded-full bg-[#e8b4b8] px-4 font-sans text-[12px] font-medium text-white transition-all duration-300',
+              'flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-[#e8b4b8] px-4 font-sans text-[12px] font-medium text-white transition-all duration-300',
               'hover:bg-[#d9a0a5] hover:shadow-lg hover:shadow-[#e8b4b8]/25 active:scale-95',
               'disabled:opacity-50 disabled:cursor-not-allowed',
             )}

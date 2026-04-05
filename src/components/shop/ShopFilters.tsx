@@ -39,7 +39,7 @@ function FilterDropdown({ label, children, isOpen, onToggle, hasActive }: Filter
       <button
         onClick={onToggle}
         className={cn(
-          'flex items-center gap-1.5 rounded-full border px-4 py-2 font-sans text-[13px] transition-all duration-200',
+          'flex cursor-pointer items-center gap-1.5 rounded-full border px-4 py-2 font-sans text-[13px] transition-all duration-200',
           hasActive
             ? 'border-[#2d2d2d] bg-[#2d2d2d] text-white'
             : 'border-[#e0dbd4] bg-white text-[#2d2d2d] hover:border-[#c8c3bb]',
@@ -152,7 +152,7 @@ export function ShopFilters({ categories, totalProducts }: Props) {
         <button
           onClick={() => updateParam('category', '')}
           className={cn(
-            'rounded-full px-5 py-2.5 font-sans text-[13px] font-medium transition-all duration-200',
+            'cursor-pointer rounded-full px-5 py-2.5 font-sans text-[13px] font-medium transition-all duration-200',
             !activeCategory
               ? 'bg-[#2d2d2d] text-white shadow-sm'
               : 'bg-[#f5f0ea] text-[#5a5a5a] hover:bg-[#ebe6e0]',
@@ -167,7 +167,7 @@ export function ShopFilters({ categories, totalProducts }: Props) {
               updateParam('category', activeCategory === cat.slug ? '' : cat.slug)
             }
             className={cn(
-              'rounded-full px-5 py-2.5 font-sans text-[13px] font-medium transition-all duration-200',
+              'cursor-pointer rounded-full px-5 py-2.5 font-sans text-[13px] font-medium transition-all duration-200',
               activeCategory === cat.slug
                 ? 'bg-[#2d2d2d] text-white shadow-sm'
                 : 'bg-[#f5f0ea] text-[#5a5a5a] hover:bg-[#ebe6e0]',
@@ -193,7 +193,7 @@ export function ShopFilters({ categories, totalProducts }: Props) {
                 key={item.slug || 'default'}
                 onClick={() => updateParam('sort', item.slug || '')}
                 className={cn(
-                  'flex w-full items-center rounded-lg px-3 py-2 text-left font-sans text-[13px] transition-colors',
+                  'flex w-full cursor-pointer items-center rounded-lg px-3 py-2 text-left font-sans text-[13px] transition-colors',
                   (activeSort || '') === (item.slug || '')
                     ? 'bg-[#f5f0ea] text-[#2d2d2d] font-medium'
                     : 'text-[#5a5a5a] hover:bg-[#faf7f4]',
@@ -218,7 +218,7 @@ export function ShopFilters({ categories, totalProducts }: Props) {
                 key={occ}
                 onClick={() => updateParam('occasion', activeOccasion === occ ? '' : occ)}
                 className={cn(
-                  'flex w-full items-center rounded-lg px-3 py-2 text-left font-sans text-[13px] transition-colors',
+                  'flex w-full cursor-pointer items-center rounded-lg px-3 py-2 text-left font-sans text-[13px] transition-colors',
                   activeOccasion === occ
                     ? 'bg-[#f5f0ea] text-[#2d2d2d] font-medium'
                     : 'text-[#5a5a5a] hover:bg-[#faf7f4]',
@@ -243,7 +243,7 @@ export function ShopFilters({ categories, totalProducts }: Props) {
                 key={range.label}
                 onClick={() => updatePriceRange(range.min, range.max)}
                 className={cn(
-                  'flex w-full items-center rounded-lg px-3 py-2 text-left font-sans text-[13px] transition-colors',
+                  'flex w-full cursor-pointer items-center rounded-lg px-3 py-2 text-left font-sans text-[13px] transition-colors',
                   activePriceMin === String(range.min)
                     ? 'bg-[#f5f0ea] text-[#2d2d2d] font-medium'
                     : 'text-[#5a5a5a] hover:bg-[#faf7f4]',
@@ -268,7 +268,7 @@ export function ShopFilters({ categories, totalProducts }: Props) {
                 key={color.value}
                 onClick={() => updateParam('color', activeColor === color.value ? '' : color.value)}
                 className={cn(
-                  'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left font-sans text-[13px] transition-colors',
+                  'flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-left font-sans text-[13px] transition-colors',
                   activeColor === color.value
                     ? 'bg-[#f5f0ea] text-[#2d2d2d] font-medium'
                     : 'text-[#5a5a5a] hover:bg-[#faf7f4]',
@@ -297,7 +297,7 @@ export function ShopFilters({ categories, totalProducts }: Props) {
                 key={rec}
                 onClick={() => updateParam('recipient', activeRecipient === rec ? '' : rec)}
                 className={cn(
-                  'flex w-full items-center rounded-lg px-3 py-2 text-left font-sans text-[13px] transition-colors',
+                  'flex w-full cursor-pointer items-center rounded-lg px-3 py-2 text-left font-sans text-[13px] transition-colors',
                   activeRecipient === rec
                     ? 'bg-[#f5f0ea] text-[#2d2d2d] font-medium'
                     : 'text-[#5a5a5a] hover:bg-[#faf7f4]',
@@ -313,7 +313,7 @@ export function ShopFilters({ categories, totalProducts }: Props) {
         {hasActiveFilters && (
           <button
             onClick={clearAllFilters}
-            className="flex items-center gap-1 rounded-full px-3 py-2 font-sans text-[13px] text-[#8a8a8a] transition-colors hover:text-[#2d2d2d]"
+            className="flex cursor-pointer items-center gap-1 rounded-full px-3 py-2 font-sans text-[13px] text-[#8a8a8a] transition-colors hover:text-[#2d2d2d]"
           >
             <X className="h-3.5 w-3.5" strokeWidth={1.5} />
             Сбросить

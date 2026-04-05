@@ -205,7 +205,7 @@ export function ProductInfo({ product }: Props) {
                         onClick={() => selectOption(type.name, option.id)}
                         disabled={!isAvailable}
                         className={cn(
-                          'rounded-full border px-5 py-2.5 font-sans text-[13px] font-medium transition-all duration-200',
+                          'cursor-pointer rounded-full border px-5 py-2.5 font-sans text-[13px] font-medium transition-all duration-200',
                           isActive
                             ? 'border-[#2d2d2d] bg-[#2d2d2d] text-white'
                             : isAvailable
@@ -235,7 +235,7 @@ export function ProductInfo({ product }: Props) {
               key={wrap.name}
               onClick={() => setSelectedWrapper(i)}
               className={cn(
-                'group relative flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200',
+                'group relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full transition-all duration-200',
                 i === selectedWrapper
                   ? 'ring-2 ring-[#2d2d2d] ring-offset-2 ring-offset-[#faf5f0]'
                   : 'hover:ring-2 hover:ring-[#d5d0c9] hover:ring-offset-2 hover:ring-offset-[#faf5f0]',
@@ -261,7 +261,7 @@ export function ProductInfo({ product }: Props) {
         onClick={handleAddToCart}
         disabled={isLoading || !inStock}
         className={cn(
-          'flex w-full items-center justify-center gap-2.5 rounded-full py-4 font-sans text-[15px] font-semibold transition-all duration-300',
+          'flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-full py-4 font-sans text-[15px] font-semibold transition-all duration-300',
           inStock
             ? 'bg-[#e8b4b8] text-white hover:bg-[#d9a0a5] hover:shadow-xl hover:shadow-[#e8b4b8]/25 active:scale-[0.98]'
             : 'bg-[#e8e4de] text-[#b0a99e] cursor-not-allowed',
@@ -295,7 +295,7 @@ export function ProductInfo({ product }: Props) {
         <div className="border-t border-[#e8e4de] pt-4">
           <button
             onClick={() => setCompositionOpen(!compositionOpen)}
-            className="flex w-full items-center justify-between py-2"
+            className="flex w-full cursor-pointer items-center justify-between py-2"
           >
             <span className="font-sans text-[14px] font-medium text-[#2d2d2d]">
               Состав букета
