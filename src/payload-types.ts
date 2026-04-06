@@ -1102,7 +1102,25 @@ export interface PromoSlide {
 export interface DeliveryZone {
   id: number;
   zoneType: 'IN_MKAD' | 'OUT_MKAD_5' | 'OUT_MKAD_10' | 'OUT_MKAD_15' | 'OUT_MKAD_30' | 'OUT_MKAD_50' | 'PICKUP';
-  price: number;
+  /**
+   * Базовая цена доставки. Применяется порог freeFrom.
+   */
+  price3h: number;
+  /**
+   * Оставьте пустым, если интервал недоступен в этой зоне.
+   */
+  price1h?: number | null;
+  /**
+   * Оставьте пустым, если интервал недоступен в этой зоне.
+   */
+  priceExact?: number | null;
+  /**
+   * Какие интервалы доставки доступны клиентам в этой зоне.
+   */
+  availableIntervals: ('3h' | '1h' | 'exact')[];
+  /**
+   * Порог суммы корзины, выше которого 3-часовая доставка бесплатна.
+   */
   freeFrom?: number | null;
   estimatedTime?: string | null;
   active?: boolean | null;
@@ -1616,7 +1634,10 @@ export interface PromoSlidesSelect<T extends boolean = true> {
  */
 export interface DeliveryZonesSelect<T extends boolean = true> {
   zoneType?: T;
-  price?: T;
+  price3h?: T;
+  price1h?: T;
+  priceExact?: T;
+  availableIntervals?: T;
   freeFrom?: T;
   estimatedTime?: T;
   active?: T;

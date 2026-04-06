@@ -12,6 +12,12 @@ export const ZONE_TYPE_OPTIONS = [
   { label: 'Самовывоз', value: 'PICKUP' },
 ] as const
 
+export const DELIVERY_INTERVAL_OPTIONS = [
+  { label: '3-часовой интервал', value: '3h' },
+  { label: 'Часовой интервал', value: '1h' },
+  { label: 'К точному времени', value: 'exact' },
+] as const
+
 export const DeliveryZones: CollectionConfig = {
   slug: 'delivery-zones',
   access: {
@@ -23,7 +29,7 @@ export const DeliveryZones: CollectionConfig = {
   admin: {
     useAsTitle: 'zoneType',
     group: 'Shop',
-    defaultColumns: ['zoneType', 'price', 'freeFrom', 'active'],
+    defaultColumns: ['zoneType', 'price3h', 'price1h', 'priceExact', 'freeFrom', 'active'],
   },
   fields: [
     {
@@ -33,13 +39,47 @@ export const DeliveryZones: CollectionConfig = {
       options: [...ZONE_TYPE_OPTIONS],
     },
     {
-      name: 'price',
+      name: 'price3h',
       type: 'number',
       required: true,
+      label: 'Цена за 3-часовой интервал',
+      admin: {
+        description: 'Базовая цена доставки. Применяется порог freeFrom.',
+      },
+    },
+    {
+      name: 'price1h',
+      type: 'number',
+      label: 'Цена за часовой интервал',
+      admin: {
+        description: 'Оставьте пустым, если интервал недоступен в этой зоне.',
+      },
+    },
+    {
+      name: 'priceExact',
+      type: 'number',
+      label: 'Цена к точному времени',
+      admin: {
+        description: 'Оставьте пустым, если интервал недоступен в этой зоне.',
+      },
+    },
+    {
+      name: 'availableIntervals',
+      type: 'select',
+      hasMany: true,
+      required: true,
+      defaultValue: ['3h', '1h', 'exact'],
+      options: [...DELIVERY_INTERVAL_OPTIONS],
+      admin: {
+        description: 'Какие интервалы доставки доступны клиентам в этой зоне.',
+      },
     },
     {
       name: 'freeFrom',
       type: 'number',
+      admin: {
+        description: 'Порог суммы корзины, выше которого 3-часовая доставка бесплатна.',
+      },
     },
     {
       name: 'estimatedTime',

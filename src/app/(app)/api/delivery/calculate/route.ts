@@ -44,7 +44,10 @@ export async function POST(request: Request): Promise<Response> {
     const isFree = zone.freeFrom != null && cartTotal >= zone.freeFrom
 
     return Response.json({
-      price: zone.price,
+      price3h: zone.price3h ?? 0,
+      price1h: zone.price1h ?? null,
+      priceExact: zone.priceExact ?? null,
+      availableIntervals: zone.availableIntervals ?? ['3h'],
       freeFrom: zone.freeFrom ?? null,
       estimatedTime: zone.estimatedTime ?? null,
       isFree,

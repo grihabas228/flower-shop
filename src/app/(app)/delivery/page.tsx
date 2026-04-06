@@ -67,7 +67,7 @@ export default async function DeliveryPage() {
   const { docs: deliveryZones } = await payload.find({
     collection: 'delivery-zones',
     where: { active: { equals: true } },
-    sort: 'price',
+    sort: 'price3h',
     limit: 20,
   })
 
@@ -163,7 +163,7 @@ export default async function DeliveryPage() {
                   <div className="flex justify-between items-baseline gap-2 text-sm">
                     <span className="text-[#5a5a5a]">Стоимость</span>
                     <span className="font-medium text-[#2d2d2d]">
-                      {zone.price === 0 ? 'Бесплатно' : `${zone.price.toLocaleString('ru-RU')} \u20BD`}
+                      {zone.price3h === 0 ? 'Бесплатно' : `${zone.price3h.toLocaleString('ru-RU')} \u20BD`}
                     </span>
                   </div>
                   {zone.freeFrom != null && (

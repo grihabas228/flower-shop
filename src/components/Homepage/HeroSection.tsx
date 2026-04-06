@@ -26,8 +26,11 @@ type DeliveryZoneInfo = {
   unavailable: boolean
   zone?: {
     id: number
-    zoneName: string
-    price: number
+    zoneType: string
+    price3h: number
+    price1h: number | null
+    priceExact: number | null
+    availableIntervals: ('3h' | '1h' | 'exact')[]
     freeFrom: number | null
     estimatedTime: string | null
   }
@@ -178,9 +181,9 @@ export function HeroSection({ slides }: Props) {
                 ) : (
                   <div className="rounded-xl bg-gradient-to-br from-[#e8b4b8]/10 to-[#e8b4b8]/5 px-4 py-3">
                     <p className="font-sans text-[13px] font-medium text-[#2d2d2d]">
-                      Доставка: {deliveryInfo.zone?.estimatedTime} · {deliveryInfo.zone?.price === 0 ? 'Бесплатно' : `${deliveryInfo.zone?.price} \u20BD`}
+                      Доставка: {deliveryInfo.zone?.estimatedTime} · {deliveryInfo.zone?.price3h === 0 ? 'Бесплатно' : `${deliveryInfo.zone?.price3h} \u20BD`}
                     </p>
-                    {deliveryInfo.zone?.freeFrom && deliveryInfo.zone.price > 0 && (
+                    {deliveryInfo.zone?.freeFrom && deliveryInfo.zone.price3h > 0 && (
                       <p className="font-sans text-[12px] text-[#8a8a8a] mt-0.5">
                         Бесплатная доставка от {deliveryInfo.zone.freeFrom.toLocaleString('ru-RU')} &#8381;
                       </p>
