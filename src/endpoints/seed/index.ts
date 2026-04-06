@@ -514,7 +514,7 @@ export const seed = async ({
     payload.create({
       collection: 'delivery-zones',
       data: {
-        zoneName: 'Внутри МКАД',
+        zoneType: 'IN_MKAD',
         price: 390,
         freeFrom: 5000,
         estimatedTime: 'от 90 мин',
@@ -524,7 +524,7 @@ export const seed = async ({
     payload.create({
       collection: 'delivery-zones',
       data: {
-        zoneName: 'За МКАД до 5 км',
+        zoneType: 'OUT_MKAD_5',
         price: 600,
         freeFrom: 8000,
         estimatedTime: 'от 120 мин',
@@ -534,7 +534,7 @@ export const seed = async ({
     payload.create({
       collection: 'delivery-zones',
       data: {
-        zoneName: 'За МКАД 5-10 км',
+        zoneType: 'OUT_MKAD_10',
         price: 900,
         freeFrom: 10000,
         estimatedTime: 'от 150 мин',
@@ -544,7 +544,7 @@ export const seed = async ({
     payload.create({
       collection: 'delivery-zones',
       data: {
-        zoneName: 'За МКАД 10-15 км',
+        zoneType: 'OUT_MKAD_15',
         price: 1200,
         estimatedTime: 'от 180 мин',
         active: true,
@@ -553,7 +553,7 @@ export const seed = async ({
     payload.create({
       collection: 'delivery-zones',
       data: {
-        zoneName: 'За МКАД 15-30 км',
+        zoneType: 'OUT_MKAD_30',
         price: 1800,
         estimatedTime: 'от 240 мин',
         active: true,
@@ -562,7 +562,7 @@ export const seed = async ({
     payload.create({
       collection: 'delivery-zones',
       data: {
-        zoneName: 'За МКАД 30-50 км',
+        zoneType: 'OUT_MKAD_50',
         price: 2500,
         estimatedTime: 'от 300 мин',
         active: true,
@@ -571,7 +571,7 @@ export const seed = async ({
     payload.create({
       collection: 'delivery-zones',
       data: {
-        zoneName: 'Самовывоз',
+        zoneType: 'PICKUP',
         price: 0,
         estimatedTime: '30 мин',
         active: true,

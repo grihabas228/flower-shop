@@ -3,25 +3,25 @@ import configPromise from '@payload-config'
 
 type ZoneMapping = {
   maxDistance: number
-  zoneName: string
+  zoneType: string
 }
 
 const OUT_MKAD_ZONES: ZoneMapping[] = [
-  { maxDistance: 5, zoneName: 'За МКАД до 5 км' },
-  { maxDistance: 10, zoneName: 'За МКАД 5-10 км' },
-  { maxDistance: 15, zoneName: 'За МКАД 10-15 км' },
-  { maxDistance: 30, zoneName: 'За МКАД 15-30 км' },
-  { maxDistance: 50, zoneName: 'За МКАД 30-50 км' },
+  { maxDistance: 5, zoneType: 'OUT_MKAD_5' },
+  { maxDistance: 10, zoneType: 'OUT_MKAD_10' },
+  { maxDistance: 15, zoneType: 'OUT_MKAD_15' },
+  { maxDistance: 30, zoneType: 'OUT_MKAD_30' },
+  { maxDistance: 50, zoneType: 'OUT_MKAD_50' },
 ]
 
-function getZoneName(beltwayHit: string | null, beltwayDistance: number | null): string | null {
-  if (beltwayHit === 'IN_MKAD') return 'Внутри МКАД'
+function getZoneType(beltwayHit: string | null, beltwayDistance: number | null): string | null {
+  if (beltwayHit === 'IN_MKAD') return 'IN_MKAD'
 
   if (beltwayHit === 'OUT_MKAD' && beltwayDistance != null) {
     for (const zone of OUT_MKAD_ZONES) {
-      if (beltwayDistance <= zone.maxDistance) return zone.zoneName
+      if (beltwayDistance <= zone.maxDistance) return zone.zoneType
     }
-    return null // > 50 km — unavailable
+    return null // > 50 km
   }
 
   return null
@@ -33,12 +33,12 @@ export async function POST(request: Request): Promise<Response> {
     const { beltway_hit, beltway_distance, cartTotal = 0 } = body
 
     const dist = beltway_distance != null ? Number(beltway_distance) : null
-    const zoneName = getZoneName(
+    const zoneType = getZoneType(
       beltway_hit ?? null,
       dist != null && !isNaN(dist) ? dist : null,
     )
 
-    if (!zoneName) {
+    if (!zoneType) {
       return Response.json({
         unavailable: true,
         message: 'Доставка в этот район пока недоступна',
@@ -50,7 +50,7 @@ export async function POST(request: Request): Promise<Response> {
     const { docs } = await payload.find({
       collection: 'delivery-zones',
       where: {
-        zoneName: { equals: zoneName },
+        zoneType: { equals: zoneType },
         active: { equals: true },
       },
       limit: 1,
@@ -70,7 +70,7 @@ export async function POST(request: Request): Promise<Response> {
       unavailable: false,
       zone: {
         id: zone.id,
-        zoneName: zone.zoneName,
+        zoneType: zone.zoneType,
         price: zone.price,
         freeFrom: zone.freeFrom ?? null,
         estimatedTime: zone.estimatedTime ?? null,

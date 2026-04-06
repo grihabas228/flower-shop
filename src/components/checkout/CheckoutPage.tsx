@@ -8,8 +8,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useCart } from '@payloadcms/plugin-ecommerce/client/react'
-import { Gift, ChevronRight, Clock, MapPin, User, Mail, Phone, FileText, Check, Truck, Store, AlertCircle } from 'lucide-react'
-import type { DeliveryZone } from '@/payload-types'
+import { Gift, ChevronRight, Clock, MapPin, User, FileText, Check, Truck, AlertCircle } from 'lucide-react'
 import { AddressInput, type DaDataSuggestion } from '@/components/AddressInput'
 
 const timeSlots = [
@@ -38,7 +37,6 @@ export const CheckoutPage: React.FC = () => {
   const { cart } = useCart()
 
   const [promo, setPromo] = useState<PromoState>(null)
-  const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>([])
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null)
   const [deliveryResult, setDeliveryResult] = useState<DeliveryResult>(null)
   const [recipientName, setRecipientName] = useState('')
@@ -62,44 +60,6 @@ export const CheckoutPage: React.FC = () => {
       setRecipientEmail(user.email)
     }
   }, [user])
-
-  // Fetch delivery zones on mount
-  useEffect(() => {
-    let cancelled = false
-    fetch('/api/delivery-zones?where[active][equals]=true&sort=price&limit=20')
-      .then((res) => res.json())
-      .then((data) => {
-        if (cancelled) return
-        if (data.docs) {
-          setDeliveryZones(data.docs)
-        }
-      })
-      .catch(() => {})
-    return () => { cancelled = true }
-  }, [])
-
-  // Calculate delivery cost when zone or subtotal changes
-  useEffect(() => {
-    if (selectedZoneId == null || subtotal === 0) {
-      setDeliveryResult(null)
-      return
-    }
-    let cancelled = false
-    fetch('/api/delivery/calculate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ zoneId: selectedZoneId, cartTotal: subtotal }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (cancelled) return
-        if (data.price != null) {
-          setDeliveryResult(data)
-        }
-      })
-      .catch(() => {})
-    return () => { cancelled = true }
-  }, [selectedZoneId, subtotal])
 
   const handleAddressSelect = useCallback(async (suggestion: DaDataSuggestion) => {
     setAddressSelected(true)
@@ -137,17 +97,17 @@ export const CheckoutPage: React.FC = () => {
       } else if (info.zone) {
         setAddressUnavailable(false)
         setSelectedZoneId(info.zone.id)
+        setDeliveryResult({
+          price: info.zone.price,
+          freeFrom: info.zone.freeFrom,
+          estimatedTime: info.zone.estimatedTime,
+          isFree: info.isFree,
+        })
       }
     } catch {
-      // Fallback: keep manual zone selection
+      // Keep current state on error
     }
   }, [subtotal])
-
-  const selectedZone = useMemo(
-    () => deliveryZones.find((z) => z.id === selectedZoneId) ?? null,
-    [deliveryZones, selectedZoneId],
-  )
-  const isPickup = selectedZone?.price === 0
 
   useEffect(() => {
     if (!promoParam || subtotal === 0) return
@@ -293,122 +253,69 @@ export const CheckoutPage: React.FC = () => {
               <h2 className="font-serif text-xl md:text-2xl text-foreground">Доставка</h2>
             </div>
 
-            {/* Zone selector */}
-            <div className="mb-6">
-              <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-3 font-medium">
-                Зона доставки
-              </label>
-              <div className="grid grid-cols-1 gap-2.5">
-                {deliveryZones.map((zone) => {
-                  const isSelected = selectedZoneId === zone.id
-                  const zoneIsFree = zone.freeFrom != null && subtotal >= zone.freeFrom
-                  return (
-                    <button
-                      key={zone.id}
-                      type="button"
-                      onClick={() => setSelectedZoneId(zone.id)}
-                      className={`flex items-center gap-4 p-4 rounded-xl border text-left transition-all ${
-                        isSelected
-                          ? 'border-accent bg-accent/5 ring-1 ring-accent/30'
-                          : 'border-border hover:border-foreground/20'
-                      }`}
-                    >
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                        isSelected ? 'bg-accent/15' : 'bg-secondary'
-                      }`}>
-                        {zone.zoneName === 'Самовывоз' ? (
-                          <Store className={`w-4 h-4 ${isSelected ? 'text-accent' : 'text-muted-foreground'}`} />
+            {/* Address input with DaData */}
+            <div className="mb-5 space-y-4">
+              <div>
+                <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
+                  Адрес доставки
+                </label>
+                <AddressInput
+                  value={addressValue}
+                  onChange={(val) => {
+                    setAddressValue(val)
+                    if (addressSelected) {
+                      setAddressSelected(false)
+                      setSelectedZoneId(null)
+                      setDeliveryResult(null)
+                    }
+                  }}
+                  onSelect={handleAddressSelect}
+                  placeholder="Укажите улицу и дом"
+                  hint="*Смена адреса может повлиять на время доставки"
+                />
+                {addressUnavailable && (
+                  <div className="flex items-center gap-2 mt-2 text-red-500">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <p className="text-xs">Доставка в этот район пока недоступна</p>
+                  </div>
+                )}
+                {/* Show detected zone info */}
+                {addressSelected && deliveryResult && !addressUnavailable && (
+                  <div className="flex items-center gap-2.5 mt-2 rounded-xl bg-accent/5 border border-accent/20 px-4 py-3">
+                    <Truck className="w-4 h-4 text-accent shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground">
+                        {deliveryResult.estimatedTime}
+                        {' · '}
+                        {deliveryResult.isFree ? (
+                          <span className="text-green-600">Бесплатно</span>
                         ) : (
-                          <Truck className={`w-4 h-4 ${isSelected ? 'text-accent' : 'text-muted-foreground'}`} />
+                          <>{deliveryResult.price} &#8381;</>
                         )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium ${isSelected ? 'text-foreground' : 'text-foreground/80'}`}>
-                          {zone.zoneName}
+                      </p>
+                      {deliveryResult.freeFrom && !deliveryResult.isFree && (
+                        <p className="text-xs text-muted-foreground">
+                          Бесплатно от {deliveryResult.freeFrom.toLocaleString('ru-RU')} &#8381;
                         </p>
-                        {zone.estimatedTime && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            <Clock className="w-3 h-3 inline mr-1" />
-                            {zone.estimatedTime}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right shrink-0">
-                        {zone.price === 0 ? (
-                          <span className="text-sm font-medium text-green-600">Бесплатно</span>
-                        ) : zoneIsFree ? (
-                          <div>
-                            <span className="text-sm font-medium text-green-600">Бесплатно</span>
-                            <p className="text-[10px] text-muted-foreground line-through">{zone.price} &#8381;</p>
-                          </div>
-                        ) : (
-                          <div>
-                            <span className="text-sm font-medium text-foreground">{zone.price} &#8381;</span>
-                            {zone.freeFrom && (
-                              <p className="text-[10px] text-muted-foreground">
-                                бесплатно от {zone.freeFrom.toLocaleString('ru-RU')} &#8381;
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  )
-                })}
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
+                  Квартира / Офис
+                </label>
+                <input
+                  type="text"
+                  value={apartment}
+                  onChange={(e) => setApartment(e.target.value)}
+                  placeholder="Номер"
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                />
               </div>
             </div>
-
-            {/* Pickup info */}
-            {isPickup && (
-              <div className="flex items-start gap-3 bg-accent/5 border border-accent/20 rounded-xl p-4 mb-6">
-                <Store className="w-4 h-4 text-accent mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">Пункт самовывоза</p>
-                  <p className="text-sm text-muted-foreground mt-1">Москва, ул. Цветочная, д. 12</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Ежедневно с 9:00 до 21:00</p>
-                </div>
-              </div>
-            )}
-
-            {/* Address input with DaData — hidden for pickup */}
-            {!isPickup && (
-              <div className="mb-5 space-y-4">
-                <div>
-                  <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
-                    Адрес доставки
-                  </label>
-                  <AddressInput
-                    value={addressValue}
-                    onChange={(val) => {
-                      setAddressValue(val)
-                      if (addressSelected) setAddressSelected(false)
-                    }}
-                    onSelect={handleAddressSelect}
-                    placeholder="Укажите улицу и дом"
-                    hint="*Смена адреса может повлиять на время доставки"
-                  />
-                  {addressUnavailable && (
-                    <div className="flex items-center gap-2 mt-2 text-red-500">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      <p className="text-xs">Доставка в этот район пока недоступна</p>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
-                    Квартира / Офис
-                  </label>
-                  <input
-                    type="text"
-                    value={apartment}
-                    onChange={(e) => setApartment(e.target.value)}
-                    placeholder="Номер"
-                    className="w-full bg-background border border-border rounded-xl px-4 py-3.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
-                  />
-                </div>
-              </div>
-            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
@@ -581,8 +488,10 @@ export const CheckoutPage: React.FC = () => {
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>Доставка</span>
-                  {selectedZoneId == null ? (
-                    <span className="text-muted-foreground/60 text-xs">выберите зону</span>
+                  {!addressSelected ? (
+                    <span className="text-muted-foreground/60 text-xs">укажите адрес</span>
+                  ) : addressUnavailable ? (
+                    <span className="text-red-500 text-xs">недоступна</span>
                   ) : deliveryResult?.isFree || deliveryCost === 0 ? (
                     <span className="text-green-600 font-medium">Бесплатно</span>
                   ) : (
@@ -627,10 +536,10 @@ export const CheckoutPage: React.FC = () => {
 
             {/* Pay button */}
             <button
-              disabled={selectedZoneId == null}
+              disabled={!addressSelected || addressUnavailable || selectedZoneId == null}
               className="w-full bg-accent text-accent-foreground py-4 rounded-full text-base font-medium tracking-wide hover:bg-accent/90 transition-all hover:shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:active:scale-100"
             >
-              {selectedZoneId == null ? 'Выберите зону доставки' : (
+              {!addressSelected ? 'Укажите адрес доставки' : addressUnavailable ? 'Доставка недоступна' : (
                 <>
                   ОПЛАТИТЬ{' '}
                   <Price amount={total} as="span" className="inline" />

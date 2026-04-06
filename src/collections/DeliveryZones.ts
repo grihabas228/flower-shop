@@ -2,6 +2,16 @@ import type { CollectionConfig } from 'payload'
 
 import { adminOnly } from '@/access/adminOnly'
 
+export const ZONE_TYPE_OPTIONS = [
+  { label: 'Внутри МКАД', value: 'IN_MKAD' },
+  { label: 'За МКАД до 5 км', value: 'OUT_MKAD_5' },
+  { label: 'За МКАД 5-10 км', value: 'OUT_MKAD_10' },
+  { label: 'За МКАД 10-15 км', value: 'OUT_MKAD_15' },
+  { label: 'За МКАД 15-30 км', value: 'OUT_MKAD_30' },
+  { label: 'За МКАД 30-50 км', value: 'OUT_MKAD_50' },
+  { label: 'Самовывоз', value: 'PICKUP' },
+] as const
+
 export const DeliveryZones: CollectionConfig = {
   slug: 'delivery-zones',
   access: {
@@ -11,15 +21,16 @@ export const DeliveryZones: CollectionConfig = {
     update: adminOnly,
   },
   admin: {
-    useAsTitle: 'zoneName',
+    useAsTitle: 'zoneType',
     group: 'Shop',
-    defaultColumns: ['zoneName', 'price', 'freeFrom', 'active'],
+    defaultColumns: ['zoneType', 'price', 'freeFrom', 'active'],
   },
   fields: [
     {
-      name: 'zoneName',
-      type: 'text',
+      name: 'zoneType',
+      type: 'select',
       required: true,
+      options: [...ZONE_TYPE_OPTIONS],
     },
     {
       name: 'price',

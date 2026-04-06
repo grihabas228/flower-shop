@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
+import { ZONE_TYPE_OPTIONS } from '@/collections/DeliveryZones'
 
 const paymentMethods = [
   {
@@ -137,7 +138,8 @@ export default async function DeliveryPage() {
         <h2 className="font-serif text-2xl sm:text-3xl text-[#2d2d2d] mb-8">Зоны доставки</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {deliveryZones.map((zone) => {
-            const isPickup = zone.zoneName === 'Самовывоз'
+            const isPickup = zone.zoneType === 'PICKUP'
+            const label = ZONE_TYPE_OPTIONS.find((o) => o.value === zone.zoneType)?.label ?? zone.zoneType
             return (
               <div
                 key={zone.id}
@@ -150,7 +152,7 @@ export default async function DeliveryPage() {
                     <Truck className="h-5 w-5 text-[#e8b4b8]" />
                   )}
                 </div>
-                <h3 className="font-sans font-medium text-[#2d2d2d] mb-1">{zone.zoneName}</h3>
+                <h3 className="font-sans font-medium text-[#2d2d2d] mb-1">{label}</h3>
                 {zone.estimatedTime && (
                   <p className="text-sm text-[#8a8a8a] mb-4 flex items-center gap-1.5">
                     <Clock className="h-3.5 w-3.5" />
