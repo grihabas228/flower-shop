@@ -553,6 +553,24 @@ export const seed = async ({
     payload.create({
       collection: 'delivery-zones',
       data: {
+        zoneName: 'За МКАД 15-30 км',
+        price: 1800,
+        estimatedTime: 'от 240 мин',
+        active: true,
+      },
+    }),
+    payload.create({
+      collection: 'delivery-zones',
+      data: {
+        zoneName: 'За МКАД 30-50 км',
+        price: 2500,
+        estimatedTime: 'от 300 мин',
+        active: true,
+      },
+    }),
+    payload.create({
+      collection: 'delivery-zones',
+      data: {
         zoneName: 'Самовывоз',
         price: 0,
         estimatedTime: '30 мин',

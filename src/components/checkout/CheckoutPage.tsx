@@ -6,10 +6,11 @@ import { useAuth } from '@/providers/Auth'
 import { calculateDiscount } from '@/utilities/promo'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useCart } from '@payloadcms/plugin-ecommerce/client/react'
-import { Gift, ChevronRight, Clock, MapPin, User, Mail, Phone, FileText, Check, Truck, Store } from 'lucide-react'
+import { Gift, ChevronRight, Clock, MapPin, User, Mail, Phone, FileText, Check, Truck, Store, AlertCircle } from 'lucide-react'
 import type { DeliveryZone } from '@/payload-types'
+import { AddressInput, type DaDataSuggestion } from '@/components/AddressInput'
 
 const timeSlots = [
   { id: 'morning', label: 'Утро', time: '9:00 — 12:00' },
@@ -43,9 +44,9 @@ export const CheckoutPage: React.FC = () => {
   const [recipientName, setRecipientName] = useState('')
   const [recipientPhone, setRecipientPhone] = useState('')
   const [recipientEmail, setRecipientEmail] = useState('')
-  const [city] = useState('Москва')
-  const [street, setStreet] = useState('')
-  const [house, setHouse] = useState('')
+  const [addressValue, setAddressValue] = useState('')
+  const [addressSelected, setAddressSelected] = useState(false)
+  const [addressUnavailable, setAddressUnavailable] = useState(false)
   const [apartment, setApartment] = useState('')
   const [deliveryDate, setDeliveryDate] = useState('')
   const [timeSlot, setTimeSlot] = useState('day')
@@ -99,6 +100,35 @@ export const CheckoutPage: React.FC = () => {
       .catch(() => {})
     return () => { cancelled = true }
   }, [selectedZoneId, subtotal])
+
+  const handleAddressSelect = useCallback(async (suggestion: DaDataSuggestion) => {
+    setAddressSelected(true)
+    setAddressUnavailable(false)
+    const { data } = suggestion
+
+    try {
+      const res = await fetch('/api/delivery/zone-by-address', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          beltway_hit: data.beltway_hit,
+          beltway_distance: data.beltway_distance,
+          cartTotal: subtotal,
+        }),
+      })
+      const info = await res.json()
+      if (info.unavailable) {
+        setAddressUnavailable(true)
+        setSelectedZoneId(null)
+        setDeliveryResult(null)
+      } else if (info.zone) {
+        setAddressUnavailable(false)
+        setSelectedZoneId(info.zone.id)
+      }
+    } catch {
+      // Fallback: keep manual zone selection
+    }
+  }, [subtotal, deliveryZones])
 
   const selectedZone = useMemo(
     () => deliveryZones.find((z) => z.id === selectedZoneId) ?? null,
@@ -327,45 +357,29 @@ export const CheckoutPage: React.FC = () => {
               </div>
             )}
 
-            {/* Address fields — hidden for pickup */}
+            {/* Address input with DaData — hidden for pickup */}
             {!isPickup && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-                <div className="md:col-span-2">
-                  <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
-                    Город
-                  </label>
-                  <input
-                    type="text"
-                    value={city}
-                    disabled
-                    className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3.5 text-sm text-muted-foreground cursor-not-allowed"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
-                    Улица
-                  </label>
-                  <input
-                    type="text"
-                    value={street}
-                    onChange={(e) => setStreet(e.target.value)}
-                    placeholder="Название улицы"
-                    className="w-full bg-background border border-border rounded-xl px-4 py-3.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
-                  />
-                </div>
-
+              <div className="mb-5 space-y-4">
                 <div>
                   <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
-                    Дом
+                    Адрес доставки
                   </label>
-                  <input
-                    type="text"
-                    value={house}
-                    onChange={(e) => setHouse(e.target.value)}
-                    placeholder="Номер дома"
-                    className="w-full bg-background border border-border rounded-xl px-4 py-3.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                  <AddressInput
+                    value={addressValue}
+                    onChange={(val) => {
+                      setAddressValue(val)
+                      if (addressSelected) setAddressSelected(false)
+                    }}
+                    onSelect={handleAddressSelect}
+                    placeholder="Укажите улицу и дом"
+                    hint="*Смена адреса может повлиять на время доставки"
                   />
+                  {addressUnavailable && (
+                    <div className="flex items-center gap-2 mt-2 text-red-500">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <p className="text-xs">Доставка в этот район пока недоступна</p>
+                    </div>
+                  )}
                 </div>
 
                 <div>

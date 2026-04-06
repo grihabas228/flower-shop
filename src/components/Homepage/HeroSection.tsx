@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import useEmblaCarousel from 'embla-carousel-react'
-import { MapPin, Clock, Truck, ChevronLeft, ChevronRight } from 'lucide-react'
+import { MapPin, Clock, Truck, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { YandexMap } from '@/components/YandexMap'
+import { AddressInput, type DaDataSuggestion } from '@/components/AddressInput'
 
 type PromoSlide = {
   id: number | string
@@ -21,6 +22,19 @@ type Props = {
   slides: PromoSlide[]
 }
 
+type DeliveryZoneInfo = {
+  unavailable: boolean
+  zone?: {
+    id: number
+    zoneName: string
+    price: number
+    freeFrom: number | null
+    estimatedTime: string | null
+  }
+  isFree?: boolean
+  message?: string
+}
+
 const defaultSlide: PromoSlide = {
   id: 'default',
   title: 'Изысканные букеты',
@@ -30,10 +44,21 @@ const defaultSlide: PromoSlide = {
   buttonLink: '/shop',
 }
 
+const SHOP_COORDS: [number, number] = [55.764, 37.606]
+
 export function HeroSection({ slides }: Props) {
   const displaySlides = slides.length > 0 ? slides : [defaultSlide]
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: displaySlides.length > 1 })
   const [selectedIndex, setSelectedIndex] = useState(0)
+
+  const [addressValue, setAddressValue] = useState('')
+  const [mapCenter, setMapCenter] = useState<[number, number]>(SHOP_COORDS)
+  const [mapMarker, setMapMarker] = useState<[number, number]>(SHOP_COORDS)
+  const [mapZoom, setMapZoom] = useState(13)
+  const [markerTitle, setMarkerTitle] = useState('FLEUR')
+  const [markerBody, setMarkerBody] = useState('Москва, ул. Цветочная, д. 12')
+  const [deliveryInfo, setDeliveryInfo] = useState<DeliveryZoneInfo | null>(null)
+  const [addressSelected, setAddressSelected] = useState(false)
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return
@@ -61,10 +86,44 @@ export function HeroSection({ slides }: Props) {
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi])
   const scrollTo = useCallback((index: number) => emblaApi?.scrollTo(index), [emblaApi])
 
+  const handleAddressSelect = useCallback(async (suggestion: DaDataSuggestion) => {
+    const { data } = suggestion
+
+    // Update map
+    if (data.geo_lat && data.geo_lon) {
+      const lat = parseFloat(data.geo_lat)
+      const lon = parseFloat(data.geo_lon)
+      setMapCenter([lat, lon])
+      setMapMarker([lat, lon])
+      setMapZoom(15)
+      setMarkerTitle(suggestion.value)
+      setMarkerBody('')
+    }
+
+    setAddressSelected(true)
+
+    // Fetch delivery zone
+    try {
+      const res = await fetch('/api/delivery/zone-by-address', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          beltway_hit: data.beltway_hit,
+          beltway_distance: data.beltway_distance,
+          cartTotal: 0,
+        }),
+      })
+      const info = await res.json()
+      setDeliveryInfo(info)
+    } catch {
+      setDeliveryInfo(null)
+    }
+  }, [])
+
   return (
     <section className="mx-auto max-w-7xl px-4 pt-6 pb-10 lg:pt-8 lg:pb-14">
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[340px_1fr] xl:grid-cols-[380px_1fr]">
-        {/* Left — Yandex Map + Delivery Info */}
+        {/* Left — Address + Map + Delivery Info */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -72,47 +131,80 @@ export function HeroSection({ slides }: Props) {
           className="hidden lg:flex"
         >
           <div className="flex w-full flex-col rounded-2xl border border-[#e8e4de] bg-white/60 overflow-hidden backdrop-blur-sm">
-            {/* Yandex Map */}
-            <div className="relative h-[220px] xl:h-[250px]">
-              <YandexMap
-                center={[55.764, 37.606]}
-                zoom={13}
-                markerCoords={[55.764, 37.606]}
-                markerTitle="FLEUR"
-                markerBody="Москва, ул. Цветочная, д. 12"
+            {/* Address Input */}
+            <div className="p-4 pb-0">
+              <AddressInput
+                value={addressValue}
+                onChange={setAddressValue}
+                onSelect={handleAddressSelect}
+                placeholder="Укажите свой адрес"
               />
             </div>
 
-            {/* Delivery info items */}
-            <div className="flex flex-col justify-between flex-1 p-5">
-              <div className="space-y-3.5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#f0ebe3]">
-                    <Truck className="h-4 w-4 text-[#5a5a5a]" strokeWidth={1.5} />
-                  </div>
-                  <div>
-                    <p className="font-sans text-[14px] text-[#2d2d2d]">Доставка от 2 часов</p>
-                    <p className="font-sans text-[12px] text-[#8a8a8a]">Курьером к двери</p>
-                  </div>
-                </div>
+            {/* Yandex Map */}
+            <div className="relative h-[200px] xl:h-[230px] mx-4 mt-3 rounded-xl overflow-hidden">
+              <YandexMap
+                center={mapCenter}
+                zoom={mapZoom}
+                markerCoords={mapMarker}
+                markerTitle={markerTitle}
+                markerBody={markerBody}
+              />
+            </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#f0ebe3]">
-                    <Clock className="h-4 w-4 text-[#5a5a5a]" strokeWidth={1.5} />
+            {/* Delivery info */}
+            <div className="p-4 pt-3">
+              {deliveryInfo && addressSelected ? (
+                deliveryInfo.unavailable ? (
+                  <div className="flex items-center gap-2.5 rounded-xl bg-red-50 px-4 py-3">
+                    <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
+                    <p className="font-sans text-[13px] text-red-600">
+                      {deliveryInfo.message || 'Доставка в этот район пока недоступна'}
+                    </p>
                   </div>
-                  <div>
-                    <p className="font-sans text-[14px] text-[#2d2d2d]">С 8:00 до 22:00</p>
-                    <p className="font-sans text-[12px] text-[#8a8a8a]">Ежедневно без выходных</p>
+                ) : (
+                  <div className="rounded-xl bg-gradient-to-br from-[#e8b4b8]/10 to-[#e8b4b8]/5 px-4 py-3">
+                    <p className="font-sans text-[13px] font-medium text-[#2d2d2d]">
+                      Доставка: {deliveryInfo.zone?.estimatedTime} · {deliveryInfo.zone?.price === 0 ? 'Бесплатно' : `${deliveryInfo.zone?.price} \u20BD`}
+                    </p>
+                    {deliveryInfo.zone?.freeFrom && deliveryInfo.zone.price > 0 && (
+                      <p className="font-sans text-[12px] text-[#8a8a8a] mt-0.5">
+                        Бесплатная доставка от {deliveryInfo.zone.freeFrom.toLocaleString('ru-RU')} &#8381;
+                      </p>
+                    )}
                   </div>
-                </div>
-              </div>
+                )
+              ) : (
+                <>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#f0ebe3]">
+                        <Truck className="h-4 w-4 text-[#5a5a5a]" strokeWidth={1.5} />
+                      </div>
+                      <div>
+                        <p className="font-sans text-[14px] text-[#2d2d2d]">Доставка от 2 часов</p>
+                        <p className="font-sans text-[12px] text-[#8a8a8a]">Курьером к двери</p>
+                      </div>
+                    </div>
 
-              {/* Free delivery badge */}
-              <div className="mt-4 rounded-xl bg-gradient-to-br from-[#e8b4b8]/10 to-[#e8b4b8]/5 px-4 py-3">
-                <p className="font-sans text-[13px] font-medium text-[#2d2d2d]">
-                  Бесплатная доставка от 5 000 &#8381;
-                </p>
-              </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#f0ebe3]">
+                        <Clock className="h-4 w-4 text-[#5a5a5a]" strokeWidth={1.5} />
+                      </div>
+                      <div>
+                        <p className="font-sans text-[14px] text-[#2d2d2d]">С 8:00 до 22:00</p>
+                        <p className="font-sans text-[12px] text-[#8a8a8a]">Ежедневно без выходных</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 rounded-xl bg-gradient-to-br from-[#e8b4b8]/10 to-[#e8b4b8]/5 px-4 py-3">
+                    <p className="font-sans text-[13px] font-medium text-[#2d2d2d]">
+                      Бесплатная доставка от 5 000 &#8381;
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </motion.div>
