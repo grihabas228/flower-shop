@@ -1101,7 +1101,7 @@ export interface PromoSlide {
  */
 export interface DeliveryZone {
   id: number;
-  zoneName: string;
+  zoneType: 'IN_MKAD' | 'OUT_MKAD_5' | 'OUT_MKAD_10' | 'OUT_MKAD_15' | 'OUT_MKAD_30' | 'OUT_MKAD_50' | 'PICKUP';
   price: number;
   freeFrom?: number | null;
   estimatedTime?: string | null;
@@ -1615,7 +1615,7 @@ export interface PromoSlidesSelect<T extends boolean = true> {
  * via the `definition` "delivery-zones_select".
  */
 export interface DeliveryZonesSelect<T extends boolean = true> {
-  zoneName?: T;
+  zoneType?: T;
   price?: T;
   freeFrom?: T;
   estimatedTime?: T;
