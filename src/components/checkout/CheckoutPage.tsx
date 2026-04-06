@@ -5,7 +5,7 @@ import { useAuth } from '@/providers/Auth'
 import { calculateDiscount } from '@/utilities/promo'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCart } from '@payloadcms/plugin-ecommerce/client/react'
 import {
   Gift,
@@ -27,6 +27,9 @@ import {
 import { AddressInput, type DaDataSuggestion } from '@/components/AddressInput'
 import { YandexMap } from '@/components/YandexMap'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { SavedAddressesDropdown } from '@/components/checkout/SavedAddressesDropdown'
+import { useSavedAddresses } from '@/hooks/useSavedAddresses'
+import type { SavedAddress } from '@/utilities/savedAddresses'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -599,6 +602,26 @@ export const CheckoutPage: React.FC = () => {
   const [floor, setFloor] = useState('')
   const [intercom, setIntercom] = useState('')
 
+  // Saved addresses
+  const {
+    addresses: savedAddresses,
+    hydrated: savedHydrated,
+    add: addSavedAddress,
+    update: updateSavedAddress,
+    remove: removeSavedAddress,
+  } = useSavedAddresses()
+  const [addressMode, setAddressMode] = useState<'pick' | 'add' | 'edit'>('add')
+  const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null)
+  // Track latest beltway data so we can save the address after a successful lookup
+  const lastBeltwayRef = useRef<{
+    geo_lat: string
+    geo_lon: string
+    beltway_hit: string | null
+    beltway_distance: string | null
+  } | null>(null)
+  // Skip auto-save when the lookup was triggered by picking a saved address
+  const skipAutoSaveRef = useRef(false)
+
   // Interval
   const [interval, setInterval] = useState<IntervalType | null>(null)
   const [slot3h, setSlot3h] = useState('')
@@ -697,6 +720,14 @@ export const CheckoutPage: React.FC = () => {
         const cleanData = await cleanRes.json()
         if (cleanData.error) return
 
+        // Cache beltway data so auto-save (or "save on order") can persist it
+        lastBeltwayRef.current = {
+          geo_lat: suggestion.data.geo_lat ?? cleanData.geo_lat ?? '',
+          geo_lon: suggestion.data.geo_lon ?? cleanData.geo_lon ?? '',
+          beltway_hit: cleanData.beltway_hit ?? null,
+          beltway_distance: cleanData.beltway_distance ?? null,
+        }
+
         const zoneRes = await fetch('/api/delivery/zone-by-address', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -737,12 +768,172 @@ export const CheckoutPage: React.FC = () => {
           } else {
             setInterval(intervals[0]!)
           }
+
+          // Auto-save: persist freshly entered address (skip if just picked from history)
+          if (!skipAutoSaveRef.current && lastBeltwayRef.current) {
+            const id = addSavedAddress({
+              address: suggestion.value,
+              apartment,
+              entrance,
+              floor,
+              intercom,
+              geo_lat: lastBeltwayRef.current.geo_lat,
+              geo_lon: lastBeltwayRef.current.geo_lon,
+              beltway_hit: lastBeltwayRef.current.beltway_hit,
+              beltway_distance: lastBeltwayRef.current.beltway_distance,
+            })
+            setSelectedSavedId(id)
+            setAddressMode('pick')
+          }
+          skipAutoSaveRef.current = false
         }
       } catch {
         // keep state on error
       }
     },
+    [subtotal, addSavedAddress, apartment, entrance, floor, intercom],
+  )
+
+  // Apply a saved address: fill all fields, update map, look up zone using cached beltway data
+  const applySavedAddress = useCallback(
+    async (addr: SavedAddress) => {
+      skipAutoSaveRef.current = true
+      setSelectedSavedId(addr.id)
+      setAddressMode('pick')
+      setAddressValue(addr.address)
+      setApartment(addr.apartment)
+      setEntrance(addr.entrance)
+      setFloor(addr.floor)
+      setIntercom(addr.intercom)
+      setAddressSelected(true)
+      setAddressUnavailable(false)
+      setMarkerTitle(addr.address)
+      setMarkerBody('')
+
+      if (addr.geo_lat && addr.geo_lon) {
+        const lat = parseFloat(addr.geo_lat)
+        const lon = parseFloat(addr.geo_lon)
+        if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
+          setMapCenter([lat, lon])
+          setMapMarker([lat, lon])
+          setMapZoom(15)
+        }
+      }
+
+      lastBeltwayRef.current = {
+        geo_lat: addr.geo_lat,
+        geo_lon: addr.geo_lon,
+        beltway_hit: addr.beltway_hit,
+        beltway_distance: addr.beltway_distance,
+      }
+
+      // Re-determine zone using cached beltway data (no /api/dadata/clean call needed)
+      try {
+        const zoneRes = await fetch('/api/delivery/zone-by-address', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            beltway_hit: addr.beltway_hit,
+            beltway_distance: addr.beltway_distance,
+            cartTotal: subtotal,
+          }),
+        })
+        const info = await zoneRes.json()
+
+        if (info.unavailable) {
+          setAddressUnavailable(true)
+          setZoneInfo(null)
+          setInterval(null)
+          return
+        }
+
+        if (info.zone) {
+          const zone: DeliveryZoneInfo = {
+            id: info.zone.id,
+            zoneType: info.zone.zoneType,
+            price3h: info.zone.price3h ?? 0,
+            price1h: info.zone.price1h ?? null,
+            priceExact: info.zone.priceExact ?? null,
+            availableIntervals: (info.zone.availableIntervals ?? ['3h']) as IntervalType[],
+            freeFrom: info.zone.freeFrom ?? null,
+            estimatedTime: info.zone.estimatedTime ?? null,
+          }
+          setZoneInfo(zone)
+          const intervals = zone.availableIntervals
+          if (intervals.length === 1) setInterval(intervals[0]!)
+          else if (intervals.includes('3h')) setInterval('3h')
+          else setInterval(intervals[0]!)
+        }
+      } catch {
+        // ignore network errors
+      } finally {
+        skipAutoSaveRef.current = false
+      }
+    },
     [subtotal],
+  )
+
+  // On first load (after hydration), auto-apply the default saved address
+  const didAutoApplyRef = useRef(false)
+  useEffect(() => {
+    if (!savedHydrated || didAutoApplyRef.current) return
+    if (savedAddresses.length === 0) {
+      setAddressMode('add')
+      didAutoApplyRef.current = true
+      return
+    }
+    const def = savedAddresses.find((a) => a.isDefault) ?? savedAddresses[0]
+    if (def) {
+      didAutoApplyRef.current = true
+      void applySavedAddress(def)
+    }
+  }, [savedHydrated, savedAddresses, applySavedAddress])
+
+  // Handlers for the dropdown action icons
+  const handleAddNewAddress = useCallback(() => {
+    setAddressMode('add')
+    setSelectedSavedId(null)
+    setAddressValue('')
+    setApartment('')
+    setEntrance('')
+    setFloor('')
+    setIntercom('')
+    setAddressSelected(false)
+    setAddressUnavailable(false)
+    setZoneInfo(null)
+    setInterval(null)
+    lastBeltwayRef.current = null
+  }, [])
+
+  const handleEditSelectedAddress = useCallback((addr: SavedAddress) => {
+    setAddressMode('edit')
+    setSelectedSavedId(addr.id)
+    // Fields stay populated; they become editable thanks to addressMode === 'edit'
+  }, [])
+
+  const handleDeleteSelectedAddress = useCallback(
+    (id: string) => {
+      removeSavedAddress(id)
+      // If we just deleted the active one, clear and switch to add mode
+      if (selectedSavedId === id) {
+        handleAddNewAddress()
+      }
+    },
+    [removeSavedAddress, selectedSavedId, handleAddNewAddress],
+  )
+
+  // Persist additional-field edits while in 'edit' mode
+  const handleAdditionalFieldChange = useCallback(
+    (field: 'apartment' | 'entrance' | 'floor' | 'intercom', value: string) => {
+      if (field === 'apartment') setApartment(value)
+      if (field === 'entrance') setEntrance(value)
+      if (field === 'floor') setFloor(value)
+      if (field === 'intercom') setIntercom(value)
+      if (addressMode === 'edit' && selectedSavedId) {
+        updateSavedAddress(selectedSavedId, { [field]: value })
+      }
+    },
+    [addressMode, selectedSavedId, updateSavedAddress],
   )
 
   // Promo apply
@@ -1074,32 +1265,53 @@ export const CheckoutPage: React.FC = () => {
 
                 {/* Delivery tab */}
                 <TabsContent value="delivery" className="space-y-5">
-                  <div>
-                    <label className="block text-[11px] tracking-[0.12em] uppercase text-[#8a8a8a] mb-2 font-medium">
-                      Адрес доставки
-                    </label>
-                    <AddressInput
-                      value={addressValue}
-                      onChange={(val) => {
-                        setAddressValue(val)
-                        if (addressSelected) {
-                          setAddressSelected(false)
-                          setZoneInfo(null)
-                          setInterval(null)
-                          setAddressUnavailable(false)
-                        }
-                      }}
-                      onSelect={handleAddressSelect}
-                      placeholder="Укажите улицу и дом"
-                      hint="*Смена адреса может повлиять на стоимость доставки"
-                    />
-                    {addressUnavailable && (
-                      <div className="flex items-center gap-2 mt-2 text-red-500">
-                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                        <p className="text-xs">Доставка в этот район пока недоступна</p>
-                      </div>
-                    )}
-                  </div>
+                  {/* Saved addresses dropdown — only when there's history */}
+                  {savedHydrated && savedAddresses.length > 0 && (
+                    <div>
+                      <label className="block text-[11px] tracking-[0.12em] uppercase text-[#8a8a8a] mb-2 font-medium">
+                        Выбрать адрес из истории
+                      </label>
+                      <SavedAddressesDropdown
+                        addresses={savedAddresses}
+                        selectedId={selectedSavedId}
+                        onSelect={(addr) => void applySavedAddress(addr)}
+                        onAddNew={handleAddNewAddress}
+                        onEdit={handleEditSelectedAddress}
+                        onDelete={handleDeleteSelectedAddress}
+                      />
+                    </div>
+                  )}
+
+                  {/* AddressInput — shown in add/edit mode, or always if no saved addresses */}
+                  {(addressMode !== 'pick' || savedAddresses.length === 0) && (
+                    <div>
+                      <label className="block text-[11px] tracking-[0.12em] uppercase text-[#8a8a8a] mb-2 font-medium">
+                        {addressMode === 'edit' ? 'Изменить адрес' : 'Адрес доставки'}
+                      </label>
+                      <AddressInput
+                        value={addressValue}
+                        onChange={(val) => {
+                          setAddressValue(val)
+                          if (addressSelected) {
+                            setAddressSelected(false)
+                            setZoneInfo(null)
+                            setInterval(null)
+                            setAddressUnavailable(false)
+                          }
+                        }}
+                        onSelect={handleAddressSelect}
+                        placeholder="Укажите улицу и дом"
+                        hint="*Смена адреса может повлиять на стоимость доставки"
+                      />
+                    </div>
+                  )}
+
+                  {addressUnavailable && (
+                    <div className="flex items-center gap-2 text-red-500">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <p className="text-xs">Доставка в этот район пока недоступна</p>
+                    </div>
+                  )}
 
                   {/* Map */}
                   <div className="h-[220px] rounded-2xl overflow-hidden border border-[#e8e4de]">
@@ -1112,35 +1324,47 @@ export const CheckoutPage: React.FC = () => {
                     />
                   </div>
 
-                  {/* Apt / entrance / floor / intercom */}
+                  {/* Apt / entrance / floor / intercom — read-only in pick mode */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <input
                       type="text"
                       value={apartment}
-                      onChange={(e) => setApartment(e.target.value)}
+                      onChange={(e) => handleAdditionalFieldChange('apartment', e.target.value)}
                       placeholder="Кв/Офис"
-                      className={inputCls}
+                      readOnly={addressMode === 'pick'}
+                      className={`${inputCls} ${
+                        addressMode === 'pick' ? 'bg-[#faf5f0] cursor-default' : ''
+                      }`}
                     />
                     <input
                       type="text"
                       value={entrance}
-                      onChange={(e) => setEntrance(e.target.value)}
+                      onChange={(e) => handleAdditionalFieldChange('entrance', e.target.value)}
                       placeholder="Подъезд"
-                      className={inputCls}
+                      readOnly={addressMode === 'pick'}
+                      className={`${inputCls} ${
+                        addressMode === 'pick' ? 'bg-[#faf5f0] cursor-default' : ''
+                      }`}
                     />
                     <input
                       type="text"
                       value={floor}
-                      onChange={(e) => setFloor(e.target.value)}
+                      onChange={(e) => handleAdditionalFieldChange('floor', e.target.value)}
                       placeholder="Этаж"
-                      className={inputCls}
+                      readOnly={addressMode === 'pick'}
+                      className={`${inputCls} ${
+                        addressMode === 'pick' ? 'bg-[#faf5f0] cursor-default' : ''
+                      }`}
                     />
                     <input
                       type="text"
                       value={intercom}
-                      onChange={(e) => setIntercom(e.target.value)}
+                      onChange={(e) => handleAdditionalFieldChange('intercom', e.target.value)}
                       placeholder="Домофон"
-                      className={inputCls}
+                      readOnly={addressMode === 'pick'}
+                      className={`${inputCls} ${
+                        addressMode === 'pick' ? 'bg-[#faf5f0] cursor-default' : ''
+                      }`}
                     />
                   </div>
 
