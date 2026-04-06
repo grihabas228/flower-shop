@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { YandexMap } from '@/components/YandexMap'
 import { AddressInput, type DaDataSuggestion } from '@/components/AddressInput'
+import { useDelivery } from '@/providers/DeliveryProvider'
 
 type PromoSlide = {
   id: number | string
@@ -50,6 +51,7 @@ const defaultSlide: PromoSlide = {
 const SHOP_COORDS: [number, number] = [55.764, 37.606]
 
 export function HeroSection({ slides }: Props) {
+  const { setZone, markUnavailable } = useDelivery()
   const displaySlides = slides.length > 0 ? slides : [defaultSlide]
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: displaySlides.length > 1 })
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -131,10 +133,27 @@ export function HeroSection({ slides }: Props) {
       })
       const info = await zoneRes.json()
       setDeliveryInfo(info)
+
+      // Sync to global delivery context so product cards can read estimatedTime
+      if (info.unavailable) {
+        markUnavailable(suggestion.value)
+      } else if (info.zone) {
+        setZone({
+          id: info.zone.id,
+          zoneType: info.zone.zoneType,
+          price3h: info.zone.price3h ?? 0,
+          price1h: info.zone.price1h ?? null,
+          priceExact: info.zone.priceExact ?? null,
+          availableIntervals: info.zone.availableIntervals ?? ['3h'],
+          freeFrom: info.zone.freeFrom ?? null,
+          estimatedTime: info.zone.estimatedTime ?? null,
+          address: suggestion.value,
+        })
+      }
     } catch {
       setDeliveryInfo(null)
     }
-  }, [])
+  }, [setZone, markUnavailable])
 
   return (
     <section className="mx-auto max-w-7xl px-4 pt-6 pb-10 lg:pt-8 lg:pb-14">

@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { useCart } from '@payloadcms/plugin-ecommerce/client/react'
 import { toast } from 'sonner'
 import { cn } from '@/utilities/cn'
+import { useDelivery } from '@/providers/DeliveryProvider'
 
 type VariantOption = {
   id: number
@@ -51,8 +52,10 @@ function formatPrice(price: number): string {
   return new Intl.NumberFormat('ru-RU').format(price)
 }
 
-export function ProductCardShop({ product, deliveryTime = 'от 120 мин', bonusPoints }: Props) {
+export function ProductCardShop({ product, deliveryTime, bonusPoints }: Props) {
   const { addItem, isLoading } = useCart()
+  const { estimatedTime } = useDelivery()
+  const resolvedDeliveryTime = deliveryTime ?? estimatedTime
   const [isWishlisted, setIsWishlisted] = useState(false)
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0)
   const [isHovered, setIsHovered] = useState(false)
@@ -184,7 +187,7 @@ export function ProductCardShop({ product, deliveryTime = 'от 120 мин', bon
         {/* Delivery badge */}
         <div className="absolute bottom-3 left-3 z-10 flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 shadow-sm backdrop-blur-sm">
           <Clock className="h-3.5 w-3.5 text-[#8a8a8a]" strokeWidth={1.5} />
-          <span className="font-sans text-[11px] font-medium text-[#5a5a5a]">{deliveryTime}</span>
+          <span className="font-sans text-[11px] font-medium text-[#5a5a5a]">{resolvedDeliveryTime}</span>
         </div>
       </div>
 
