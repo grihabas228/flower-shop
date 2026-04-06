@@ -26,6 +26,7 @@ const collections: CollectionSlug[] = [
   'addresses',
   'orders',
   'promo-codes',
+  'delivery-zones',
 ]
 
 const categories = ['Accessories', 'T-Shirts', 'Hats']
@@ -506,6 +507,59 @@ export const seed = async ({
       usageCount: 0,
     },
   })
+
+  payload.logger.info(`— Seeding delivery zones...`)
+
+  await Promise.all([
+    payload.create({
+      collection: 'delivery-zones',
+      data: {
+        zoneName: 'Внутри МКАД',
+        price: 390,
+        freeFrom: 5000,
+        estimatedTime: 'от 90 мин',
+        active: true,
+      },
+    }),
+    payload.create({
+      collection: 'delivery-zones',
+      data: {
+        zoneName: 'За МКАД до 5 км',
+        price: 600,
+        freeFrom: 8000,
+        estimatedTime: 'от 120 мин',
+        active: true,
+      },
+    }),
+    payload.create({
+      collection: 'delivery-zones',
+      data: {
+        zoneName: 'За МКАД 5-10 км',
+        price: 900,
+        freeFrom: 10000,
+        estimatedTime: 'от 150 мин',
+        active: true,
+      },
+    }),
+    payload.create({
+      collection: 'delivery-zones',
+      data: {
+        zoneName: 'За МКАД 10-15 км',
+        price: 1200,
+        estimatedTime: 'от 180 мин',
+        active: true,
+      },
+    }),
+    payload.create({
+      collection: 'delivery-zones',
+      data: {
+        zoneName: 'Самовывоз',
+        price: 0,
+        estimatedTime: '30 мин',
+        active: true,
+      },
+    }),
+  ])
 
   payload.logger.info(`— Seeding globals...`)
 

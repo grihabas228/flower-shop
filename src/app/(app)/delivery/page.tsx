@@ -4,56 +4,15 @@ import { Breadcrumbs } from '@/components/Breadcrumbs'
 import {
   MapPin,
   Truck,
-  Moon,
-  Mountain,
   CreditCard,
   Smartphone,
   Banknote,
   SplitSquareVertical,
-  Navigation,
-  ShoppingBag,
-  PackageCheck,
   Clock,
+  Store,
 } from 'lucide-react'
-import Image from 'next/image'
-
-const deliveryMethods = [
-  {
-    icon: MapPin,
-    title: 'Самовывоз',
-    description: 'Москва, ул. Цветочная, д. 12',
-    details: [{ label: 'Ежедневно с 9:00 до 21:00', price: 'Бесплатно' }],
-  },
-  {
-    icon: Truck,
-    title: 'Доставка по Москве',
-    description: 'В пределах МКАД',
-    details: [
-      { label: '3-х часовой интервал', price: '390 \u20BD' },
-      { label: 'Часовой интервал', price: '590 \u20BD' },
-      { label: 'К точному времени', price: '1 000 \u20BD' },
-    ],
-  },
-  {
-    icon: Moon,
-    title: 'В пределах МКАД',
-    description: 'Ночная доставка',
-    details: [
-      { label: 'С 21:00 до 00:00', price: '600 \u20BD' },
-      { label: 'С 22 до 23:00 и с 23 до 00:00', price: '900 \u20BD' },
-    ],
-  },
-  {
-    icon: Mountain,
-    title: 'За МКАД',
-    description: 'Московская область',
-    details: [
-      { label: 'До 5 км', price: '600 \u20BD' },
-      { label: 'От 5 до 10 км', price: '900 \u20BD' },
-      { label: 'От 10 до 15 км', price: '1 000 \u20BD' },
-    ],
-  },
-]
+import { getPayload } from 'payload'
+import configPromise from '@payload-config'
 
 const paymentMethods = [
   {
@@ -102,7 +61,15 @@ const orderSteps = [
   },
 ]
 
-export default function DeliveryPage() {
+export default async function DeliveryPage() {
+  const payload = await getPayload({ config: configPromise })
+  const { docs: deliveryZones } = await payload.find({
+    collection: 'delivery-zones',
+    where: { active: { equals: true } },
+    sort: 'price',
+    limit: 20,
+  })
+
   return (
     <div className="min-h-[60vh]">
       {/* Header Section */}
@@ -165,34 +132,46 @@ export default function DeliveryPage() {
         </div>
       </div>
 
-      {/* Delivery Methods */}
+      {/* Delivery Zones */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-16">
-        <h2 className="font-serif text-2xl sm:text-3xl text-[#2d2d2d] mb-8">Способы доставки</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {deliveryMethods.map((method) => {
-            const Icon = method.icon
+        <h2 className="font-serif text-2xl sm:text-3xl text-[#2d2d2d] mb-8">Зоны доставки</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {deliveryZones.map((zone) => {
+            const isPickup = zone.zoneName === 'Самовывоз'
             return (
               <div
-                key={method.title}
+                key={zone.id}
                 className="rounded-xl border border-[#e8e4de] bg-white p-6 hover:shadow-md transition-shadow duration-300"
               >
                 <div className="w-10 h-10 rounded-lg bg-[#faf5f0] flex items-center justify-center mb-4">
-                  <Icon className="h-5 w-5 text-[#e8b4b8]" />
+                  {isPickup ? (
+                    <Store className="h-5 w-5 text-[#e8b4b8]" />
+                  ) : (
+                    <Truck className="h-5 w-5 text-[#e8b4b8]" />
+                  )}
                 </div>
-                <h3 className="font-sans font-medium text-[#2d2d2d] mb-1">{method.title}</h3>
-                <p className="text-sm text-[#8a8a8a] mb-4">{method.description}</p>
-                <div className="space-y-2.5">
-                  {method.details.map((detail, idx) => (
-                    <div
-                      key={idx}
-                      className="flex justify-between items-baseline gap-2 text-sm"
-                    >
-                      <span className="text-[#5a5a5a] leading-tight">{detail.label}</span>
-                      <span className="font-medium text-[#2d2d2d] whitespace-nowrap shrink-0">
-                        {detail.price}
+                <h3 className="font-sans font-medium text-[#2d2d2d] mb-1">{zone.zoneName}</h3>
+                {zone.estimatedTime && (
+                  <p className="text-sm text-[#8a8a8a] mb-4 flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" />
+                    {zone.estimatedTime}
+                  </p>
+                )}
+                <div className="space-y-2.5 mt-3 pt-3 border-t border-[#e8e4de]">
+                  <div className="flex justify-between items-baseline gap-2 text-sm">
+                    <span className="text-[#5a5a5a]">Стоимость</span>
+                    <span className="font-medium text-[#2d2d2d]">
+                      {zone.price === 0 ? 'Бесплатно' : `${zone.price.toLocaleString('ru-RU')} \u20BD`}
+                    </span>
+                  </div>
+                  {zone.freeFrom != null && (
+                    <div className="flex justify-between items-baseline gap-2 text-sm">
+                      <span className="text-[#5a5a5a]">Бесплатно от</span>
+                      <span className="font-medium text-[#b5c7a3]">
+                        {zone.freeFrom.toLocaleString('ru-RU')} &#8381;
                       </span>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             )

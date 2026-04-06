@@ -8,7 +8,8 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import React, { useEffect, useMemo, useState } from 'react'
 import { useCart } from '@payloadcms/plugin-ecommerce/client/react'
-import { Gift, ChevronRight, Clock, MapPin, User, Mail, Phone, FileText, Check } from 'lucide-react'
+import { Gift, ChevronRight, Clock, MapPin, User, Mail, Phone, FileText, Check, Truck, Store } from 'lucide-react'
+import type { DeliveryZone } from '@/payload-types'
 
 const timeSlots = [
   { id: 'morning', label: 'Утро', time: '9:00 — 12:00' },
@@ -23,12 +24,22 @@ type PromoState = {
   code: string
 } | null
 
+type DeliveryResult = {
+  price: number
+  freeFrom: number | null
+  estimatedTime: string | null
+  isFree: boolean
+} | null
+
 export const CheckoutPage: React.FC = () => {
   const { user } = useAuth()
   const searchParams = useSearchParams()
   const { cart } = useCart()
 
   const [promo, setPromo] = useState<PromoState>(null)
+  const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>([])
+  const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null)
+  const [deliveryResult, setDeliveryResult] = useState<DeliveryResult>(null)
   const [recipientName, setRecipientName] = useState('')
   const [recipientPhone, setRecipientPhone] = useState('')
   const [recipientEmail, setRecipientEmail] = useState('')
@@ -50,6 +61,50 @@ export const CheckoutPage: React.FC = () => {
       setRecipientEmail(user.email)
     }
   }, [user])
+
+  // Fetch delivery zones on mount
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/delivery-zones?where[active][equals]=true&sort=price&limit=20')
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return
+        if (data.docs) {
+          setDeliveryZones(data.docs)
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
+  // Calculate delivery cost when zone or subtotal changes
+  useEffect(() => {
+    if (selectedZoneId == null || subtotal === 0) {
+      setDeliveryResult(null)
+      return
+    }
+    let cancelled = false
+    fetch('/api/delivery/calculate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ zoneId: selectedZoneId, cartTotal: subtotal }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return
+        if (data.price != null) {
+          setDeliveryResult(data)
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [selectedZoneId, subtotal])
+
+  const selectedZone = useMemo(
+    () => deliveryZones.find((z) => z.id === selectedZoneId) ?? null,
+    [deliveryZones, selectedZoneId],
+  )
+  const isPickup = selectedZone?.price === 0
 
   useEffect(() => {
     if (!promoParam || subtotal === 0) return
@@ -79,8 +134,7 @@ export const CheckoutPage: React.FC = () => {
 
   const discount = useMemo(() => calculateDiscount(promo, subtotal), [promo, subtotal])
 
-  // Calculate delivery cost (placeholder)
-  const deliveryCost = 500
+  const deliveryCost = deliveryResult ? (deliveryResult.isFree ? 0 : deliveryResult.price) : 0
   const total = subtotal - discount + deliveryCost
   const bonusPoints = Math.round(total * 0.05)
 
@@ -196,58 +250,140 @@ export const CheckoutPage: React.FC = () => {
               <h2 className="font-serif text-xl md:text-2xl text-foreground">Доставка</h2>
             </div>
 
+            {/* Zone selector */}
+            <div className="mb-6">
+              <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-3 font-medium">
+                Зона доставки
+              </label>
+              <div className="grid grid-cols-1 gap-2.5">
+                {deliveryZones.map((zone) => {
+                  const isSelected = selectedZoneId === zone.id
+                  const zoneIsFree = zone.freeFrom != null && subtotal >= zone.freeFrom
+                  return (
+                    <button
+                      key={zone.id}
+                      type="button"
+                      onClick={() => setSelectedZoneId(zone.id)}
+                      className={`flex items-center gap-4 p-4 rounded-xl border text-left transition-all ${
+                        isSelected
+                          ? 'border-accent bg-accent/5 ring-1 ring-accent/30'
+                          : 'border-border hover:border-foreground/20'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                        isSelected ? 'bg-accent/15' : 'bg-secondary'
+                      }`}>
+                        {zone.zoneName === 'Самовывоз' ? (
+                          <Store className={`w-4 h-4 ${isSelected ? 'text-accent' : 'text-muted-foreground'}`} />
+                        ) : (
+                          <Truck className={`w-4 h-4 ${isSelected ? 'text-accent' : 'text-muted-foreground'}`} />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium ${isSelected ? 'text-foreground' : 'text-foreground/80'}`}>
+                          {zone.zoneName}
+                        </p>
+                        {zone.estimatedTime && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            <Clock className="w-3 h-3 inline mr-1" />
+                            {zone.estimatedTime}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right shrink-0">
+                        {zone.price === 0 ? (
+                          <span className="text-sm font-medium text-green-600">Бесплатно</span>
+                        ) : zoneIsFree ? (
+                          <div>
+                            <span className="text-sm font-medium text-green-600">Бесплатно</span>
+                            <p className="text-[10px] text-muted-foreground line-through">{zone.price} &#8381;</p>
+                          </div>
+                        ) : (
+                          <div>
+                            <span className="text-sm font-medium text-foreground">{zone.price} &#8381;</span>
+                            {zone.freeFrom && (
+                              <p className="text-[10px] text-muted-foreground">
+                                бесплатно от {zone.freeFrom.toLocaleString('ru-RU')} &#8381;
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Pickup info */}
+            {isPickup && (
+              <div className="flex items-start gap-3 bg-accent/5 border border-accent/20 rounded-xl p-4 mb-6">
+                <Store className="w-4 h-4 text-accent mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">Пункт самовывоза</p>
+                  <p className="text-sm text-muted-foreground mt-1">Москва, ул. Цветочная, д. 12</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Ежедневно с 9:00 до 21:00</p>
+                </div>
+              </div>
+            )}
+
+            {/* Address fields — hidden for pickup */}
+            {!isPickup && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                <div className="md:col-span-2">
+                  <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
+                    Город
+                  </label>
+                  <input
+                    type="text"
+                    value={city}
+                    disabled
+                    className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3.5 text-sm text-muted-foreground cursor-not-allowed"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
+                    Улица
+                  </label>
+                  <input
+                    type="text"
+                    value={street}
+                    onChange={(e) => setStreet(e.target.value)}
+                    placeholder="Название улицы"
+                    className="w-full bg-background border border-border rounded-xl px-4 py-3.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
+                    Дом
+                  </label>
+                  <input
+                    type="text"
+                    value={house}
+                    onChange={(e) => setHouse(e.target.value)}
+                    placeholder="Номер дома"
+                    className="w-full bg-background border border-border rounded-xl px-4 py-3.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
+                    Квартира / Офис
+                  </label>
+                  <input
+                    type="text"
+                    value={apartment}
+                    onChange={(e) => setApartment(e.target.value)}
+                    placeholder="Номер"
+                    className="w-full bg-background border border-border rounded-xl px-4 py-3.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="md:col-span-2">
-                <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
-                  Город
-                </label>
-                <input
-                  type="text"
-                  value={city}
-                  disabled
-                  className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3.5 text-sm text-muted-foreground cursor-not-allowed"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
-                  Улица
-                </label>
-                <input
-                  type="text"
-                  value={street}
-                  onChange={(e) => setStreet(e.target.value)}
-                  placeholder="Название улицы"
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
-                  Дом
-                </label>
-                <input
-                  type="text"
-                  value={house}
-                  onChange={(e) => setHouse(e.target.value)}
-                  placeholder="Номер дома"
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
-                  Квартира / Офис
-                </label>
-                <input
-                  type="text"
-                  value={apartment}
-                  onChange={(e) => setApartment(e.target.value)}
-                  placeholder="Номер"
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
-                />
-              </div>
-
               <div>
                 <label className="block text-[11px] tracking-[0.12em] uppercase text-muted-foreground mb-2 font-medium">
                   Дата доставки
@@ -418,7 +554,13 @@ export const CheckoutPage: React.FC = () => {
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>Доставка</span>
-                  <span className="text-foreground">{deliveryCost} &#8381;</span>
+                  {selectedZoneId == null ? (
+                    <span className="text-muted-foreground/60 text-xs">выберите зону</span>
+                  ) : deliveryResult?.isFree || deliveryCost === 0 ? (
+                    <span className="text-green-600 font-medium">Бесплатно</span>
+                  ) : (
+                    <span className="text-foreground">{deliveryCost} &#8381;</span>
+                  )}
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span className="flex items-center gap-1.5">
@@ -457,9 +599,16 @@ export const CheckoutPage: React.FC = () => {
             </div>
 
             {/* Pay button */}
-            <button className="w-full bg-accent text-accent-foreground py-4 rounded-full text-base font-medium tracking-wide hover:bg-accent/90 transition-all hover:shadow-lg active:scale-[0.98]">
-              ОПЛАТИТЬ{' '}
-              <Price amount={total} as="span" className="inline" />
+            <button
+              disabled={selectedZoneId == null}
+              className="w-full bg-accent text-accent-foreground py-4 rounded-full text-base font-medium tracking-wide hover:bg-accent/90 transition-all hover:shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:active:scale-100"
+            >
+              {selectedZoneId == null ? 'Выберите зону доставки' : (
+                <>
+                  ОПЛАТИТЬ{' '}
+                  <Price amount={total} as="span" className="inline" />
+                </>
+              )}
             </button>
 
             {/* Delivery info */}
