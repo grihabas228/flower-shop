@@ -3,11 +3,12 @@
 import { Media } from '@/components/Media'
 import { Price } from '@/components/Price'
 import { useAuth } from '@/providers/Auth'
+import { calculateDiscount } from '@/utilities/promo'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import React, { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useCart } from '@payloadcms/plugin-ecommerce/client/react'
-import { Gift, ChevronRight, Clock, MapPin, User, Mail, Phone, FileText } from 'lucide-react'
+import { Gift, ChevronRight, Clock, MapPin, User, Mail, Phone, FileText, Check } from 'lucide-react'
 
 const timeSlots = [
   { id: 'morning', label: 'Утро', time: '9:00 — 12:00' },
@@ -15,11 +16,19 @@ const timeSlots = [
   { id: 'evening', label: 'Вечер', time: '18:00 — 22:00' },
 ]
 
+type PromoState = {
+  valid: boolean
+  discountType: 'percentage' | 'fixed'
+  discountValue: number
+  code: string
+} | null
+
 export const CheckoutPage: React.FC = () => {
   const { user } = useAuth()
-  const router = useRouter()
+  const searchParams = useSearchParams()
   const { cart } = useCart()
 
+  const [promo, setPromo] = useState<PromoState>(null)
   const [recipientName, setRecipientName] = useState('')
   const [recipientPhone, setRecipientPhone] = useState('')
   const [recipientEmail, setRecipientEmail] = useState('')
@@ -33,12 +42,47 @@ export const CheckoutPage: React.FC = () => {
   const [showGreeting, setShowGreeting] = useState(false)
 
   const cartIsEmpty = !cart || !cart.items || !cart.items.length
+  const subtotal = cart?.subtotal || 0
+  const promoParam = searchParams.get('promo')
 
   useEffect(() => {
     if (user?.email) {
       setRecipientEmail(user.email)
     }
   }, [user])
+
+  useEffect(() => {
+    if (!promoParam || subtotal === 0) return
+    let cancelled = false
+
+    fetch('/api/promo/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: promoParam, cartTotal: subtotal }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return
+        if (data.valid) {
+          setPromo({
+            valid: true,
+            discountType: data.discountType,
+            discountValue: data.discountValue,
+            code: promoParam,
+          })
+        }
+      })
+      .catch(() => {})
+
+    return () => { cancelled = true }
+  }, [promoParam, subtotal])
+
+  const discount = useMemo(() => calculateDiscount(promo, subtotal), [promo, subtotal])
+
+  // Calculate delivery cost (placeholder)
+  const deliveryCost = 500
+  const total = subtotal - discount + deliveryCost
+  const bonusPoints = Math.round(total * 0.05)
 
   if (cartIsEmpty) {
     return (
@@ -57,12 +101,6 @@ export const CheckoutPage: React.FC = () => {
       </div>
     )
   }
-
-  // Calculate delivery cost (placeholder)
-  const deliveryCost = 500
-  const subtotal = cart?.subtotal || 0
-  const total = subtotal + deliveryCost
-  const bonusPoints = Math.round(total * 0.05)
 
   // Get today's date as min for date picker
   const today = new Date().toISOString().split('T')[0]
@@ -383,8 +421,15 @@ export const CheckoutPage: React.FC = () => {
                   <span className="text-foreground">{deliveryCost} &#8381;</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Промокод</span>
-                  <span className="text-foreground">—</span>
+                  <span className="flex items-center gap-1.5">
+                    Промокод
+                    {promo && <Check className="w-3.5 h-3.5 text-green-600" />}
+                  </span>
+                  {discount > 0 ? (
+                    <span className="text-green-600 font-medium">-{discount} &#8381;</span>
+                  ) : (
+                    <span className="text-foreground">—</span>
+                  )}
                 </div>
               </div>
 

@@ -25,6 +25,7 @@ const collections: CollectionSlug[] = [
   'transactions',
   'addresses',
   'orders',
+  'promo-codes',
 ]
 
 const categories = ['Accessories', 'T-Shirts', 'Hats']
@@ -490,6 +491,19 @@ export const seed = async ({
       ],
       status: 'processing',
       transactions: [succeededTransaction.id],
+    },
+  })
+
+  payload.logger.info(`— Seeding promo codes...`)
+
+  await payload.create({
+    collection: 'promo-codes',
+    data: {
+      code: 'FLEUR10',
+      discountType: 'percentage',
+      discountValue: 10,
+      active: true,
+      usageCount: 0,
     },
   })
 

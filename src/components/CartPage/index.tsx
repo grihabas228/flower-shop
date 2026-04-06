@@ -4,14 +4,25 @@ import { Price } from '@/components/Price'
 import { useCart } from '@payloadcms/plugin-ecommerce/client/react'
 import Image from 'next/image'
 import Link from 'next/link'
-import React, { useMemo, useState } from 'react'
-import { Minus, Plus, X, Gift, Heart, ChevronRight } from 'lucide-react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Minus, Plus, X, Gift, Heart, ChevronRight, Check, Loader2 } from 'lucide-react'
 import { Product } from '@/payload-types'
 import { AuthModal } from '@/components/AuthModal'
+import { calculateDiscount } from '@/utilities/promo'
+
+type PromoResult = {
+  valid: boolean
+  discountType?: 'percentage' | 'fixed'
+  discountValue?: number
+  message: string
+}
 
 export function CartPage() {
   const { cart, clearCart, decrementItem, incrementItem, isLoading, removeItem } = useCart()
   const [promoCode, setPromoCode] = useState('')
+  const [promoResult, setPromoResult] = useState<PromoResult | null>(null)
+  const [promoLoading, setPromoLoading] = useState(false)
+  const [appliedCode, setAppliedCode] = useState('')
   const [showAuthModal, setShowAuthModal] = useState(false)
 
   const totalQuantity = useMemo(() => {
@@ -20,6 +31,53 @@ export function CartPage() {
   }, [cart])
 
   const cartIsEmpty = !cart || !cart.items || !cart.items.length
+
+  const subtotal = cart?.subtotal || 0
+
+  const discount = useMemo(() => {
+    if (!promoResult?.valid || !promoResult.discountType || !promoResult.discountValue) return 0
+    return calculateDiscount(promoResult as { discountType: 'percentage' | 'fixed'; discountValue: number }, subtotal)
+  }, [promoResult, subtotal])
+
+  // Reset applied promo when cart contents change (subtotal changes)
+  const prevSubtotal = useRef(subtotal)
+  useEffect(() => {
+    if (prevSubtotal.current !== subtotal && appliedCode) {
+      setPromoResult(null)
+      setAppliedCode('')
+      setPromoCode('')
+    }
+    prevSubtotal.current = subtotal
+  }, [subtotal, appliedCode])
+
+  const handleApplyPromo = useCallback(async () => {
+    const trimmed = promoCode.trim()
+    if (!trimmed) return
+
+    setPromoLoading(true)
+    try {
+      const res = await fetch('/api/promo/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: trimmed, cartTotal: subtotal }),
+      })
+      const data: PromoResult = await res.json()
+      setPromoResult(data)
+      if (data.valid) {
+        setAppliedCode(trimmed)
+      }
+    } catch {
+      setPromoResult({ valid: false, message: 'Ошибка соединения' })
+    } finally {
+      setPromoLoading(false)
+    }
+  }, [promoCode, subtotal])
+
+  const handleCheckout = useCallback(() => {
+    setShowAuthModal(true)
+  }, [])
+
+  const checkoutUrl = appliedCode ? `/checkout?promo=${encodeURIComponent(appliedCode)}` : '/checkout'
 
   if (cartIsEmpty) {
     return (
@@ -261,17 +319,51 @@ export function CartPage() {
                   <input
                     type="text"
                     value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                    onChange={(e) => {
+                      setPromoCode(e.target.value.toUpperCase())
+                      if (promoResult && !promoResult.valid) setPromoResult(null)
+                    }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleApplyPromo() }}
                     placeholder="Введите промокод"
-                    className="flex-1 bg-background border border-border rounded-lg px-4 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-colors"
+                    disabled={promoLoading || (promoResult?.valid === true)}
+                    className="flex-1 bg-background border border-border rounded-lg px-4 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-colors disabled:opacity-60"
                   />
-                  <button className="px-5 py-2.5 border border-border rounded-lg text-sm font-medium hover:bg-secondary transition-colors whitespace-nowrap">
-                    Применить
-                  </button>
+                  {promoResult?.valid ? (
+                    <button
+                      onClick={() => {
+                        setPromoCode('')
+                        setPromoResult(null)
+                        setAppliedCode('')
+                      }}
+                      className="px-5 py-2.5 border border-border rounded-lg text-sm font-medium hover:bg-secondary transition-colors whitespace-nowrap text-muted-foreground"
+                    >
+                      Убрать
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleApplyPromo}
+                      disabled={promoLoading || !promoCode.trim()}
+                      className="px-5 py-2.5 border border-border rounded-lg text-sm font-medium hover:bg-secondary transition-colors whitespace-nowrap disabled:opacity-50"
+                    >
+                      {promoLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        'Применить'
+                      )}
+                    </button>
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-3">
-                  Размер скидки: <span className="text-foreground font-medium">0 &#8381;</span>
-                </p>
+                {promoResult && (
+                  <p className={`text-xs mt-3 flex items-center gap-1.5 ${promoResult.valid ? 'text-green-600' : 'text-red-500'}`}>
+                    {promoResult.valid && <Check className="w-3.5 h-3.5" />}
+                    {promoResult.message}
+                  </p>
+                )}
+                {discount > 0 && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Скидка: <span className="text-green-600 font-medium">-{discount} &#8381;</span>
+                  </p>
+                )}
               </div>
 
               {/* Bonus points */}
@@ -287,12 +379,12 @@ export function CartPage() {
 
               {/* Checkout button (hidden on mobile — sticky bar shown instead) */}
               <button
-                onClick={() => setShowAuthModal(true)}
+                onClick={handleCheckout}
                 className="hidden lg:block w-full bg-accent text-accent-foreground py-4 rounded-full text-base font-medium tracking-wide hover:bg-accent/90 transition-all hover:shadow-lg active:scale-[0.98]"
               >
                 Оформить заказ{' '}
                 <span className="mx-1.5 opacity-60">·</span>
-                <Price amount={cart?.subtotal || 0} as="span" className="inline" />
+                <Price amount={subtotal - discount} as="span" className="inline" />
               </button>
 
               {/* Info text */}
@@ -348,17 +440,17 @@ export function CartPage() {
       {/* Mobile sticky checkout bar */}
       <div className="fixed bottom-16 left-0 right-0 z-40 lg:hidden bg-background/95 backdrop-blur-md border-t border-border px-4 py-3 md:bottom-0">
         <button
-          onClick={() => setShowAuthModal(true)}
+          onClick={handleCheckout}
           className="w-full bg-accent text-accent-foreground py-3.5 rounded-full text-sm font-medium tracking-wide hover:bg-accent/90 transition-all active:scale-[0.98]"
         >
           Оформить заказ{' '}
           <span className="mx-1 opacity-60">·</span>
-          <Price amount={cart?.subtotal || 0} as="span" className="inline" />
+          <Price amount={subtotal - discount} as="span" className="inline" />
         </button>
       </div>
 
       {/* Auth Modal */}
-      <AuthModal open={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      <AuthModal open={showAuthModal} onClose={() => setShowAuthModal(false)} redirectUrl={checkoutUrl} />
     </>
   )
 }

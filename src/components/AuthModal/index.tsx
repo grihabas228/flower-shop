@@ -8,9 +8,10 @@ import { useRouter } from 'next/navigation'
 interface AuthModalProps {
   open: boolean
   onClose: () => void
+  redirectUrl?: string
 }
 
-export function AuthModal({ open, onClose }: AuthModalProps) {
+export function AuthModal({ open, onClose, redirectUrl = '/checkout' }: AuthModalProps) {
   const [phone, setPhone] = useState('')
   const [agreedPrivacy, setAgreedPrivacy] = useState(false)
   const [agreedNewsletter, setAgreedNewsletter] = useState(false)
@@ -73,7 +74,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
     if (!canSubmit) return
     // For now, just navigate to checkout — SMS auth will be implemented later
     onClose()
-    router.push('/checkout')
+    router.push(redirectUrl)
   }
 
   useEffect(() => {
