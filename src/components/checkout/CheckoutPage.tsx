@@ -104,19 +104,32 @@ export const CheckoutPage: React.FC = () => {
   const handleAddressSelect = useCallback(async (suggestion: DaDataSuggestion) => {
     setAddressSelected(true)
     setAddressUnavailable(false)
-    const { data } = suggestion
 
     try {
-      const res = await fetch('/api/delivery/zone-by-address', {
+      // Step 1: Clean address via DaData Cleaner API (server-side, returns beltway data)
+      const cleanRes = await fetch('/api/dadata/clean', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: suggestion.value }),
+      })
+      const cleanData = await cleanRes.json()
+
+      if (cleanData.error) {
+        return // Fallback: keep manual zone selection
+      }
+
+      // Step 2: Determine delivery zone from beltway data
+      const zoneRes = await fetch('/api/delivery/zone-by-address', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          beltway_hit: data.beltway_hit,
-          beltway_distance: data.beltway_distance,
+          beltway_hit: cleanData.beltway_hit,
+          beltway_distance: cleanData.beltway_distance,
           cartTotal: subtotal,
         }),
       })
-      const info = await res.json()
+      const info = await zoneRes.json()
+
       if (info.unavailable) {
         setAddressUnavailable(true)
         setSelectedZoneId(null)
@@ -128,7 +141,7 @@ export const CheckoutPage: React.FC = () => {
     } catch {
       // Fallback: keep manual zone selection
     }
-  }, [subtotal, deliveryZones])
+  }, [subtotal])
 
   const selectedZone = useMemo(
     () => deliveryZones.find((z) => z.id === selectedZoneId) ?? null,

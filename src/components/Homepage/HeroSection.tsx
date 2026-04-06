@@ -89,7 +89,7 @@ export function HeroSection({ slides }: Props) {
   const handleAddressSelect = useCallback(async (suggestion: DaDataSuggestion) => {
     const { data } = suggestion
 
-    // Update map
+    // Update map with coordinates from suggestions (available for free)
     if (data.geo_lat && data.geo_lon) {
       const lat = parseFloat(data.geo_lat)
       const lon = parseFloat(data.geo_lon)
@@ -102,18 +102,31 @@ export function HeroSection({ slides }: Props) {
 
     setAddressSelected(true)
 
-    // Fetch delivery zone
     try {
-      const res = await fetch('/api/delivery/zone-by-address', {
+      // Step 1: Clean address via DaData Cleaner API (returns beltway data)
+      const cleanRes = await fetch('/api/dadata/clean', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: suggestion.value }),
+      })
+      const cleanData = await cleanRes.json()
+
+      if (cleanData.error) {
+        setDeliveryInfo(null)
+        return
+      }
+
+      // Step 2: Determine delivery zone from beltway data
+      const zoneRes = await fetch('/api/delivery/zone-by-address', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          beltway_hit: data.beltway_hit,
-          beltway_distance: data.beltway_distance,
+          beltway_hit: cleanData.beltway_hit,
+          beltway_distance: cleanData.beltway_distance,
           cartTotal: 0,
         }),
       })
-      const info = await res.json()
+      const info = await zoneRes.json()
       setDeliveryInfo(info)
     } catch {
       setDeliveryInfo(null)
