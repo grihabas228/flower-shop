@@ -25,7 +25,9 @@ export function SavedAddressesDropdown({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const selected = addresses.find((a) => a.id === selectedId) ?? addresses[0] ?? null
+  // Strict selection: if selectedId is null, the dropdown shows a placeholder
+  // (no fallback to addresses[0]) so add/edit mode is visually distinct.
+  const selected = selectedId ? addresses.find((a) => a.id === selectedId) ?? null : null
 
   // Close on outside click
   useEffect(() => {
