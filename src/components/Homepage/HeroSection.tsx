@@ -1,14 +1,25 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import useEmblaCarousel from 'embla-carousel-react'
-import { MapPin, Clock, Truck, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react'
+import { MapPin, Clock, Truck, ChevronLeft, ChevronRight, AlertCircle, X } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { YandexMap } from '@/components/YandexMap'
 import { AddressInput, type DaDataSuggestion } from '@/components/AddressInput'
 import { useDelivery } from '@/providers/DeliveryProvider'
+
+const LAST_ADDRESS_KEY = 'fleur_last_address'
+
+type StoredLastAddress = {
+  address: string
+  geo_lat: string | null
+  geo_lon: string | null
+  beltway_hit: string | null
+  beltway_distance: string | null
+  zone_result: DeliveryZoneInfo | null
+}
 
 type PromoSlide = {
   id: number | string
@@ -51,7 +62,7 @@ const defaultSlide: PromoSlide = {
 const SHOP_COORDS: [number, number] = [55.764, 37.606]
 
 export function HeroSection({ slides }: Props) {
-  const { setZone, markUnavailable } = useDelivery()
+  const { setZone, markUnavailable, clear: clearDelivery } = useDelivery()
   const displaySlides = slides.length > 0 ? slides : [defaultSlide]
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: displaySlides.length > 1 })
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -64,6 +75,60 @@ export function HeroSection({ slides }: Props) {
   const [markerBody, setMarkerBody] = useState('Москва, ул. Цветочная, д. 12')
   const [deliveryInfo, setDeliveryInfo] = useState<DeliveryZoneInfo | null>(null)
   const [addressSelected, setAddressSelected] = useState(false)
+  const hydratedRef = useRef(false)
+
+  // Hydrate from localStorage on mount — restore previously selected address
+  // without re-hitting any API.
+  useEffect(() => {
+    if (hydratedRef.current) return
+    hydratedRef.current = true
+    if (typeof window === 'undefined') return
+    try {
+      const raw = window.localStorage.getItem(LAST_ADDRESS_KEY)
+      if (!raw) return
+      const stored = JSON.parse(raw) as StoredLastAddress
+      if (!stored?.address) return
+
+      setAddressValue(stored.address)
+      setMarkerTitle(stored.address)
+      setMarkerBody('')
+
+      if (stored.geo_lat && stored.geo_lon) {
+        const lat = parseFloat(stored.geo_lat)
+        const lon = parseFloat(stored.geo_lon)
+        if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
+          setMapCenter([lat, lon])
+          setMapMarker([lat, lon])
+          setMapZoom(15)
+        }
+      }
+
+      if (stored.zone_result) {
+        setDeliveryInfo(stored.zone_result)
+        setAddressSelected(true)
+
+        // Re-populate the global delivery context so product cards pick up
+        // the cached estimatedTime immediately on first paint.
+        if (stored.zone_result.unavailable) {
+          markUnavailable(stored.address)
+        } else if (stored.zone_result.zone) {
+          setZone({
+            id: stored.zone_result.zone.id,
+            zoneType: stored.zone_result.zone.zoneType,
+            price3h: stored.zone_result.zone.price3h ?? 0,
+            price1h: stored.zone_result.zone.price1h ?? null,
+            priceExact: stored.zone_result.zone.priceExact ?? null,
+            availableIntervals: stored.zone_result.zone.availableIntervals ?? ['3h'],
+            freeFrom: stored.zone_result.zone.freeFrom ?? null,
+            estimatedTime: stored.zone_result.zone.estimatedTime ?? null,
+            address: stored.address,
+          })
+        }
+      }
+    } catch {
+      // ignore corrupted storage
+    }
+  }, [setZone, markUnavailable])
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return
@@ -150,10 +215,44 @@ export function HeroSection({ slides }: Props) {
           address: suggestion.value,
         })
       }
+
+      // Persist to localStorage so the next visit/page rehydrates without API calls
+      try {
+        const payload: StoredLastAddress = {
+          address: suggestion.value,
+          geo_lat: data.geo_lat,
+          geo_lon: data.geo_lon,
+          beltway_hit: cleanData.beltway_hit ?? null,
+          beltway_distance: cleanData.beltway_distance ?? null,
+          zone_result: info,
+        }
+        window.localStorage.setItem(LAST_ADDRESS_KEY, JSON.stringify(payload))
+      } catch {
+        // ignore quota / privacy mode
+      }
     } catch {
       setDeliveryInfo(null)
     }
   }, [setZone, markUnavailable])
+
+  const handleClearAddress = useCallback(() => {
+    setAddressValue('')
+    setAddressSelected(false)
+    setDeliveryInfo(null)
+    setMapCenter(SHOP_COORDS)
+    setMapMarker(SHOP_COORDS)
+    setMapZoom(13)
+    setMarkerTitle('FLEUR')
+    setMarkerBody('Москва, ул. Цветочная, д. 12')
+    clearDelivery()
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(LAST_ADDRESS_KEY)
+      }
+    } catch {
+      // ignore
+    }
+  }, [clearDelivery])
 
   return (
     <section className="mx-auto max-w-7xl px-4 pt-6 pb-10 lg:pt-8 lg:pb-14">
@@ -168,12 +267,25 @@ export function HeroSection({ slides }: Props) {
           <div className="flex w-full flex-col rounded-2xl border border-[#e8e4de] bg-white/60 overflow-hidden backdrop-blur-sm">
             {/* Address Input */}
             <div className="p-4 pb-0">
-              <AddressInput
-                value={addressValue}
-                onChange={setAddressValue}
-                onSelect={handleAddressSelect}
-                placeholder="Укажите свой адрес"
-              />
+              <div className="relative">
+                <AddressInput
+                  value={addressValue}
+                  onChange={setAddressValue}
+                  onSelect={handleAddressSelect}
+                  placeholder="Укажите свой адрес"
+                />
+                {addressSelected && addressValue && (
+                  <button
+                    type="button"
+                    onClick={handleClearAddress}
+                    aria-label="Очистить адрес"
+                    title="Очистить адрес"
+                    className="absolute right-2 top-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#8a8a8a] hover:bg-[#e8b4b8]/15 hover:text-[#e8b4b8] transition-colors shadow-[0_1px_4px_rgba(45,45,45,0.08)]"
+                  >
+                    <X className="h-3.5 w-3.5" strokeWidth={2} />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Yandex Map */}
