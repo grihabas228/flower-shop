@@ -22,17 +22,17 @@ import { motion, AnimatePresence } from 'framer-motion'
 import React, { useMemo, useState, useEffect, Suspense } from 'react'
 
 const menuNavLinks = [
-  { label: 'Букеты', href: '/bukety' },
-  { label: 'Розы', href: '/rozy' },
-  { label: 'Композиции', href: '/kompozicii' },
-  { label: 'Подарки', href: '/podarki' },
-  { label: 'Акции', href: '/akcii' },
+  { label: 'Букеты', href: '/shop?category=bukety' },
+  { label: 'Розы', href: '/shop?category=rozy' },
+  { label: 'Композиции', href: '/shop?category=kompozicii' },
+  { label: 'Подарки', href: '/shop?category=podarki' },
+  { label: 'Акции', href: '/shop' },
   { label: 'О нас', href: '/about' },
   { label: 'Доставка', href: '/delivery' },
 ]
 
 const navItems = [
-  { label: 'Букеты', href: '/bukety', icon: Flower2 },
+  { label: 'Букеты', href: '/shop?category=bukety', icon: Flower2 },
   { label: 'Избранное', href: '/favorites', icon: Heart },
   { label: 'Корзина', href: '/cart', icon: ShoppingBag, hasBadge: true },
   { label: 'Кабинет', href: '/account', icon: User },

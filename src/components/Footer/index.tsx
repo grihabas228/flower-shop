@@ -6,11 +6,11 @@ import React from 'react'
 import { Phone, Mail, MapPin, Clock } from 'lucide-react'
 
 const catalogLinks = [
-  { label: 'Букеты', href: '/bukety' },
-  { label: 'Розы', href: '/rozy' },
-  { label: 'Композиции', href: '/kompozicii' },
-  { label: 'Подарки', href: '/podarki' },
-  { label: 'Акции', href: '/akcii' },
+  { label: 'Букеты', href: '/shop?category=bukety' },
+  { label: 'Розы', href: '/shop?category=rozy' },
+  { label: 'Композиции', href: '/shop?category=kompozicii' },
+  { label: 'Подарки', href: '/shop?category=podarki' },
+  { label: 'Акции', href: '/shop' },
 ]
 
 const contactInfo = [

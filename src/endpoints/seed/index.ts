@@ -29,7 +29,12 @@ const collections: CollectionSlug[] = [
   'delivery-zones',
 ]
 
-const categories = ['Accessories', 'T-Shirts', 'Hats']
+const categories = [
+  { title: 'Букеты', slug: 'bukety' },
+  { title: 'Розы', slug: 'rozy' },
+  { title: 'Композиции', slug: 'kompozicii' },
+  { title: 'Подарки', slug: 'podarki' },
+]
 
 const sizeVariantOptions = [
   { label: 'Small', value: 'small' },
@@ -181,12 +186,12 @@ export const seed = async ({
       data: imageHero1Data,
       file: heroBuffer,
     }),
-    ...categories.map((category) =>
+    ...categories.map((cat) =>
       payload.create({
         collection: 'categories',
         data: {
-          title: category,
-          slug: category,
+          title: cat.title,
+          slug: cat.slug,
         },
       }),
     ),

@@ -72,10 +72,11 @@ export default async function ShopPage({ searchParams }: Props) {
   } = await searchParams
   const payload = await getPayload({ config: configPromise })
 
-  // Fetch categories for filters
+  // Fetch categories for filters — uses the 'categories' collection
+  // (the one Products.categories actually links to).
   const categoriesResult = await payload.find({
-    collection: 'product-categories',
-    sort: 'sortOrder',
+    collection: 'categories',
+    sort: 'title',
     limit: 50,
   })
 
