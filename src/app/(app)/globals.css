@@ -249,3 +249,25 @@ a[aria-disabled="true"] {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Safe-area bottom nav — works in Safari, Chrome, and Telegram WebView.
+   Telegram doesn't support env(safe-area-inset-bottom), so we use a
+   fallback with max(). The @supports guard avoids breaking older browsers. */
+.safe-bottom-nav {
+  padding-bottom: 8px; /* fallback for Telegram WebView and old browsers */
+}
+@supports (padding: max(0px)) {
+  .safe-bottom-nav {
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Bottom content padding — accounts for fixed bottom nav on mobile */
+.safe-main-bottom {
+  padding-bottom: 80px; /* 64px nav + 16px breathing room */
+}
+@supports (padding: max(0px)) {
+  .safe-main-bottom {
+    padding-bottom: max(80px, calc(64px + env(safe-area-inset-bottom, 0px) + 16px));
+  }
+}
