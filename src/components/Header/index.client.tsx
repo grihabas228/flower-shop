@@ -1,7 +1,18 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { Search, User, ShoppingBag, MapPin, Phone, Clock, X, SlidersHorizontal } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import {
+  Search,
+  User,
+  ShoppingBag,
+  MapPin,
+  Phone,
+  Clock,
+  X,
+  SlidersHorizontal,
+  Send,
+  MessageCircle,
+} from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/utilities/cn'
 import { Cart } from '@/components/Cart'
@@ -13,7 +24,6 @@ import { usePathname, useRouter } from 'next/navigation'
 import React, { Suspense } from 'react'
 
 import { MobileMenu } from './MobileMenu'
-import { MOBILE_SCROLL_ID } from '@/components/MobileScrollContainer'
 import type { Header } from 'src/payload-types'
 
 const defaultNavLinks = [
@@ -35,12 +45,14 @@ const categoryLinks = [
   { label: 'Акции', href: '/shop?category=akcii', slug: 'akcii' },
 ]
 
-// Fixed heights
+// Fixed heights — mobile
 const MOBILE_ADDRESS_BAR_H = 32
-const MOBILE_HEADER_H = 56
-const MOBILE_CATEGORY_BAR_H = 44
-const MOBILE_TOTAL_SHOP_H = MOBILE_ADDRESS_BAR_H + MOBILE_HEADER_H + MOBILE_CATEGORY_BAR_H // 132
-const MOBILE_TOTAL_OTHER_H = MOBILE_ADDRESS_BAR_H + MOBILE_HEADER_H // 88
+const MOBILE_MAIN_BAR_H = 48
+const MOBILE_CATEGORY_BAR_H = 40
+const MOBILE_TOTAL_OTHER_H = MOBILE_ADDRESS_BAR_H + MOBILE_MAIN_BAR_H // 80
+const MOBILE_TOTAL_SHOP_H = MOBILE_ADDRESS_BAR_H + MOBILE_MAIN_BAR_H + MOBILE_CATEGORY_BAR_H // 120
+
+// Fixed heights — desktop
 const DESKTOP_INFO_BAR_H = 32
 const DESKTOP_MAIN_BAR_H = 70
 const DESKTOP_NAV_BAR_H = 48
@@ -60,10 +72,6 @@ export function HeaderClient({ header }: Props) {
 
   // Desktop: collapse top info bar on scroll
   const [isScrolled, setIsScrolled] = useState(false)
-
-  // Mobile shop: compact mode on scroll down
-  const [shopCompact, setShopCompact] = useState(false)
-  const lastScrollY = useRef(0)
 
   const isShopPage = pathname === '/shop' || pathname.startsWith('/shop?')
 
@@ -86,176 +94,109 @@ export function HeaderClient({ header }: Props) {
     }
   })()
 
+  // Desktop scroll listener only
   useEffect(() => {
-    let ticking = false
-
-    const onWindowScroll = () => {
-      if (ticking) return
-      ticking = true
-      requestAnimationFrame(() => {
-        setIsScrolled(window.scrollY > 50)
-        ticking = false
-      })
-    }
-
-    const onContainerScroll = (e: Event) => {
-      if (ticking) return
-      ticking = true
-      requestAnimationFrame(() => {
-        const el = e.target as HTMLElement
-        const y = el.scrollTop
-        const delta = y - lastScrollY.current
-
-        // Shop compact: toggle after scrolling 80px past top
-        if (isShopPage) {
-          if (y > 80 && delta > 5) {
-            setShopCompact(true)
-          } else if (delta < -5 || y <= 40) {
-            setShopCompact(false)
-          }
-        }
-
-        lastScrollY.current = y
-        ticking = false
-      })
-    }
-
-    window.addEventListener('scroll', onWindowScroll, { passive: true })
-    const container = document.getElementById(MOBILE_SCROLL_ID)
-    container?.addEventListener('scroll', onContainerScroll, { passive: true })
-
-    return () => {
-      window.removeEventListener('scroll', onWindowScroll)
-      container?.removeEventListener('scroll', onContainerScroll)
-    }
-  }, [isShopPage])
+    const onScroll = () => setIsScrolled(window.scrollY > 50)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   // Close search on route change
   useEffect(() => {
     setSearchOpen(false)
-    setShopCompact(false)
-    lastScrollY.current = 0
   }, [pathname])
 
-  // Mobile spacer height
   const mobileSpacer = isShopPage ? MOBILE_TOTAL_SHOP_H : MOBILE_TOTAL_OTHER_H
 
   return (
     <>
-      {/* ═══════ MOBILE HEADER (< lg) ═══════ */}
+      {/* ═══════════════════════════════════════════════════════════
+          MOBILE HEADER (< lg) — STATIC, NO HIDE-ON-SCROLL
+          Row 1: Address bar (32px)
+          Row 2: Logo + social icons + search (48px)
+          Row 3: Category bar — only on /shop (40px)
+          ═══════════════════════════════════════════════════════════ */}
       <div className="fixed top-0 left-0 right-0 z-50 lg:hidden">
-        {/* Row 1: Delivery address bar — always visible */}
+        {/* Row 1: Delivery address bar */}
         <DeliveryAddressBar />
 
-        {/* Row 2: Main header bar — hides in shop compact mode */}
-        <header
-          className={cn(
-            'bg-[#faf5f0] border-b border-[#e8e4de]/50 transition-all duration-200',
-            isShopPage && shopCompact
-              ? 'h-0 overflow-hidden opacity-0'
-              : 'opacity-100',
-          )}
-          style={{ height: isShopPage && shopCompact ? 0 : MOBILE_HEADER_H }}
+        {/* Row 2: Logo + contact icons */}
+        <div
+          className="flex items-center justify-between border-b border-[#e8e4de]/50 bg-[#faf5f0] px-4"
+          style={{ height: MOBILE_MAIN_BAR_H }}
         >
-          <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
-            {/* Burger */}
-            <Suspense fallback={null}>
-              <MobileMenu navLinks={navLinks} />
-            </Suspense>
+          {/* Logo */}
+          <Link
+            href="/"
+            className="font-serif text-[18px] uppercase tracking-[0.2em] text-[#2d2d2d]"
+          >
+            Fleur
+          </Link>
 
-            {/* Logo */}
-            <Link
-              href="/"
-              className="font-serif text-[20px] uppercase tracking-[0.2em] text-[#2d2d2d]"
+          {/* Right icons: Phone · Telegram · WhatsApp · Search */}
+          <div className="flex items-center gap-4">
+            <a href="tel:+74951234567" aria-label="Телефон" className="text-[#2d2d2d]">
+              <Phone className="h-[18px] w-[18px]" strokeWidth={1.5} />
+            </a>
+            <a href="#" aria-label="Telegram" className="text-[#2d2d2d]">
+              <Send className="h-[18px] w-[18px]" strokeWidth={1.5} />
+            </a>
+            <a href="#" aria-label="WhatsApp" className="text-[#2d2d2d]">
+              <MessageCircle className="h-[18px] w-[18px]" strokeWidth={1.5} />
+            </a>
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="text-[#2d2d2d]"
+              aria-label="Поиск"
             >
-              Fleur
-            </Link>
-
-            {/* Icons */}
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setSearchOpen(true)}
-                className="p-2 text-[#2d2d2d] transition-colors hover:text-[#5a5a5a]"
-                aria-label="Поиск"
-              >
-                <Search className="h-5 w-5" strokeWidth={1.5} />
-              </button>
-              <Suspense
-                fallback={
-                  <button className="relative p-2 text-[#2d2d2d]" aria-label="Корзина">
-                    <ShoppingBag className="h-5 w-5" strokeWidth={1.5} />
-                  </button>
-                }
-              >
-                <Cart />
-              </Suspense>
-            </div>
+              <Search className="h-[18px] w-[18px]" strokeWidth={1.5} />
+            </button>
           </div>
-        </header>
+        </div>
 
         {/* Row 3: Category bar — only on /shop */}
         {isShopPage && (
           <div
-            className={cn(
-              'bg-[#faf5f0] border-b border-[#e8e4de]/30 transition-all duration-200',
-            )}
+            className="flex items-center gap-2 border-b border-[#e8e4de]/30 bg-[#faf5f0] px-3"
             style={{ height: MOBILE_CATEGORY_BAR_H }}
           >
-            <div className="flex h-full items-center gap-2 px-3">
-              {/* Filter button — visible only in compact mode */}
-              <button
-                onClick={() => {
-                  // Dispatch custom event for ShopFilters bottom sheet
-                  window.dispatchEvent(new CustomEvent('fleur:open-filters'))
-                }}
-                className={cn(
-                  'shrink-0 flex items-center gap-1.5 rounded-full border border-[#e8e4de] px-3 py-1.5 text-[12px] font-medium text-[#2d2d2d] transition-all',
-                  'hover:border-[#e8b4b8]',
-                )}
-              >
-                <SlidersHorizontal className="h-3.5 w-3.5" strokeWidth={1.5} />
-                <span className="hidden min-[400px]:inline">Фильтры</span>
-              </button>
+            {/* Filter button */}
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('fleur:open-filters'))}
+              className="shrink-0 flex items-center gap-1.5 rounded-full border border-[#e8e4de] px-3 py-1.5 text-[12px] font-medium text-[#2d2d2d] hover:border-[#e8b4b8] transition-colors"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" strokeWidth={1.5} />
+              <span className="hidden min-[400px]:inline">Фильтры</span>
+            </button>
 
-              {/* Categories horizontal scroll */}
-              <div className="flex-1 overflow-x-auto scrollbar-hide">
-                <div className="flex items-center gap-1.5 pr-3">
-                  {categoryLinks.map((cat) => {
-                    const isActive = cat.slug === activeCategory || (cat.slug === '' && !activeCategory)
-                    return (
-                      <Link
-                        key={cat.slug}
-                        href={cat.href}
-                        className={cn(
-                          'shrink-0 rounded-full px-3.5 py-1.5 font-sans text-[12px] font-medium transition-all whitespace-nowrap',
-                          isActive
-                            ? 'bg-[#2d2d2d] text-[#faf5f0]'
-                            : 'text-[#5a5a5a] hover:bg-[#f0ebe3]',
-                        )}
-                      >
-                        {cat.label}
-                      </Link>
-                    )
-                  })}
-                </div>
+            {/* Categories horizontal scroll */}
+            <div className="flex-1 overflow-x-auto scrollbar-hide">
+              <div className="flex items-center gap-1.5 pr-3">
+                {categoryLinks.map((cat) => {
+                  const isActive =
+                    cat.slug === activeCategory || (cat.slug === '' && !activeCategory)
+                  return (
+                    <Link
+                      key={cat.slug}
+                      href={cat.href}
+                      className={cn(
+                        'shrink-0 rounded-full px-3 py-1.5 font-sans text-[12px] font-medium transition-all whitespace-nowrap',
+                        isActive
+                          ? 'bg-[#2d2d2d] text-[#faf5f0]'
+                          : 'text-[#5a5a5a] hover:bg-[#f0ebe3]',
+                      )}
+                    >
+                      {cat.label}
+                    </Link>
+                  )
+                })}
               </div>
-
-              {/* Search — visible in compact mode */}
-              {shopCompact && (
-                <button
-                  onClick={() => setSearchOpen(true)}
-                  className="shrink-0 p-1.5 text-[#2d2d2d]"
-                  aria-label="Поиск"
-                >
-                  <Search className="h-4.5 w-4.5" strokeWidth={1.5} />
-                </button>
-              )}
             </div>
           </div>
         )}
       </div>
 
-      {/* Mobile spacer — fixed, prevents content jump */}
+      {/* Mobile spacer — static height */}
       <div className="lg:hidden" style={{ height: mobileSpacer }} />
 
       {/* ═══════ MOBILE SEARCH OVERLAY ═══════ */}
@@ -293,7 +234,9 @@ export function HeaderClient({ header }: Props) {
         )}
       </AnimatePresence>
 
-      {/* ═══════ DESKTOP HEADER (≥ lg) — unchanged ═══════ */}
+      {/* ═══════════════════════════════════════════════════════════
+          DESKTOP HEADER (≥ lg) — UNCHANGED
+          ═══════════════════════════════════════════════════════════ */}
       <header className="fixed top-0 left-0 right-0 z-50 hidden lg:block bg-[#faf5f0] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
         <AnimatePresence>
           {!isScrolled && (

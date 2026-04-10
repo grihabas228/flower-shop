@@ -5,6 +5,7 @@ import { Footer } from '@/components/Footer'
 import { Header } from '@/components/Header'
 import { MobileBottomNav } from '@/components/MobileBottomNav'
 import { MobileScrollContainer } from '@/components/MobileScrollContainer'
+import { AddressBottomSheet } from '@/components/AddressBottomSheet'
 import { LivePreviewListener } from '@/components/LivePreviewListener'
 import { Providers } from '@/providers'
 import { InitTheme } from '@/providers/Theme/InitTheme'
@@ -48,6 +49,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <Footer />
           </MobileScrollContainer>
           <MobileBottomNav />
+          <AddressBottomSheet />
         </Providers>
       </body>
     </html>
