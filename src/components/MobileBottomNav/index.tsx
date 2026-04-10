@@ -16,6 +16,7 @@ import Link from 'next/link'
 import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import { useCart } from '@payloadcms/plugin-ecommerce/client/react'
 import { useAuth } from '@/providers/Auth'
+import { useFavorites } from '@/providers/FavoritesProvider'
 import { AuthModal } from '@/components/AuthModal'
 import { cn } from '@/utilities/cn'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -33,7 +34,7 @@ const menuNavLinks = [
 
 const navItems = [
   { label: 'Букеты', href: '/shop?category=bukety', icon: Flower2 },
-  { label: 'Избранное', href: '/favorites', icon: Heart },
+  { label: 'Избранное', href: '/favorites', icon: Heart, hasFavoritesBadge: true },
   { label: 'Корзина', href: '/cart', icon: ShoppingBag, hasBadge: true },
   { label: 'Кабинет', href: '/account', icon: User },
 ]
@@ -43,6 +44,7 @@ function BottomNavInner() {
   const router = useRouter()
   const { cart } = useCart()
   const { user } = useAuth()
+  const { count: favoritesCount } = useFavorites()
   const [menuOpen, setMenuOpen] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
 
@@ -72,7 +74,11 @@ function BottomNavInner() {
           {navItems.map((item) => {
             const active = isActive(item.href)
             const Icon = item.icon
-            const badge = item.hasBadge ? totalQuantity : 0
+            const badge = item.hasBadge
+              ? totalQuantity
+              : item.hasFavoritesBadge
+                ? favoritesCount
+                : 0
             const isAccount = item.href === '/account'
 
             const content = (

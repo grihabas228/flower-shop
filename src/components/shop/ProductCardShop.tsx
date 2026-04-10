@@ -8,6 +8,7 @@ import { useCart } from '@payloadcms/plugin-ecommerce/client/react'
 import { toast } from 'sonner'
 import { cn } from '@/utilities/cn'
 import { useDelivery } from '@/providers/DeliveryProvider'
+import { useFavorites } from '@/providers/FavoritesProvider'
 
 type VariantOption = {
   id: number
@@ -107,7 +108,8 @@ export function ProductCardShop({ product, deliveryTime, bonusPoints }: Props) {
   const { addItem, isLoading } = useCart()
   const { estimatedTime } = useDelivery()
   const resolvedDeliveryTime = deliveryTime ?? estimatedTime
-  const [isWishlisted, setIsWishlisted] = useState(false)
+  const { isFavorite, toggleFavorite } = useFavorites()
+  const isWishlisted = isFavorite(product.id)
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0)
   const [isHovered, setIsHovered] = useState(false)
 
@@ -181,11 +183,14 @@ export function ProductCardShop({ product, deliveryTime, bonusPoints }: Props) {
     [addItem, product.id, selectedVariant],
   )
 
-  const handleWishlist = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsWishlisted((prev) => !prev)
-  }, [])
+  const handleWishlist = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      toggleFavorite(product.id)
+    },
+    [toggleFavorite, product.id],
+  )
 
   const handleVariantClick = useCallback((e: React.MouseEvent, index: number) => {
     e.preventDefault()

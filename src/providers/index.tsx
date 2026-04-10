@@ -6,6 +6,7 @@ import { HeaderThemeProvider } from './HeaderTheme'
 import { ThemeProvider } from './Theme'
 import { SonnerProvider } from '@/providers/Sonner'
 import { DeliveryProvider } from '@/providers/DeliveryProvider'
+import { FavoritesProvider } from '@/providers/FavoritesProvider'
 
 export const Providers: React.FC<{
   children: React.ReactNode
@@ -36,7 +37,9 @@ export const Providers: React.FC<{
             }}
             paymentMethods={[]}
           >
-            <DeliveryProvider>{children}</DeliveryProvider>
+            <DeliveryProvider>
+              <FavoritesProvider>{children}</FavoritesProvider>
+            </DeliveryProvider>
           </EcommerceProvider>
         </HeaderThemeProvider>
       </AuthProvider>
