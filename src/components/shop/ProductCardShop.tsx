@@ -198,24 +198,14 @@ export function ProductCardShop({ product, deliveryTime, bonusPoints }: Props) {
           {product.title}
         </h3>
 
-        {/* Variant pills */}
+        {/* Variant pills — mobile: max 3 visible + "+ещё N" overflow badge */}
         {hasVariants && variantPills.length > 0 && (
-          <div className="mb-3 flex flex-wrap gap-1.5">
-            {variantPills.map((label, i) => (
-              <button
-                key={variants[i]!.id}
-                onClick={(e) => handleVariantClick(e, i)}
-                className={cn(
-                  'cursor-pointer rounded-full border px-3 py-1 font-sans text-[11px] font-medium transition-all duration-200',
-                  i === selectedVariantIndex
-                    ? 'border-[#2d2d2d] bg-[#2d2d2d] text-white'
-                    : 'border-[#e0dbd4] bg-white text-[#5a5a5a] hover:border-[#c8c3bb]',
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <VariantPillsRow
+            pills={variantPills}
+            variants={variants}
+            selectedIndex={selectedVariantIndex}
+            onSelect={handleVariantClick}
+          />
         )}
 
         {/* Bonus points */}
@@ -247,5 +237,51 @@ export function ProductCardShop({ product, deliveryTime, bonusPoints }: Props) {
         </div>
       </div>
     </Link>
+  )
+}
+
+// ─── Mobile-aware variant pills with overflow ───────────────────────────────
+
+const MOBILE_MAX_PILLS = 3
+
+type VariantPillsRowProps = {
+  pills: string[]
+  variants: Array<{ id: number }>
+  selectedIndex: number
+  onSelect: (e: React.MouseEvent, index: number) => void
+}
+
+function VariantPillsRow({ pills, variants, selectedIndex, onSelect }: VariantPillsRowProps) {
+  const overflow = pills.length - MOBILE_MAX_PILLS
+
+  return (
+    <div className="mb-3 flex flex-wrap gap-1.5">
+      {pills.map((label, i) => {
+        // On mobile (<sm) hide pills beyond MOBILE_MAX_PILLS
+        // Exception: always show the selected pill
+        const hiddenOnMobile = i >= MOBILE_MAX_PILLS && i !== selectedIndex
+        return (
+          <button
+            key={variants[i]!.id}
+            onClick={(e) => onSelect(e, i)}
+            className={cn(
+              'cursor-pointer rounded-full border px-3 py-1 font-sans text-[11px] font-medium transition-all duration-200',
+              i === selectedIndex
+                ? 'border-[#2d2d2d] bg-[#2d2d2d] text-white'
+                : 'border-[#e0dbd4] bg-white text-[#5a5a5a] hover:border-[#c8c3bb]',
+              hiddenOnMobile && 'hidden sm:inline-flex',
+            )}
+          >
+            {label}
+          </button>
+        )
+      })}
+      {/* Overflow badge — mobile only */}
+      {overflow > 0 && (
+        <span className="inline-flex items-center rounded-full border border-[#e0dbd4] bg-[#faf5f0] px-2.5 py-1 font-sans text-[11px] text-[#8a8a8a] sm:hidden">
+          +ещё&nbsp;{overflow}
+        </span>
+      )}
+    </div>
   )
 }
