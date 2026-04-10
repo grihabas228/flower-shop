@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { X, Truck, AlertCircle, Check } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AddressInput, type DaDataSuggestion } from '@/components/AddressInput'
+import { lockMobileScroll } from '@/utilities/lockMobileScroll'
 import { YandexMap } from '@/components/YandexMap'
 import { useDelivery, type DeliveryZoneSnapshot } from '@/providers/DeliveryProvider'
 
@@ -83,14 +84,10 @@ export function AddressBottomSheet() {
     }
   }, [open, zone])
 
-  // Lock scroll — use CSS class (inline style is overridden by !important)
+  // Lock scroll and restore position on close (iOS shifts scroll during sheet interaction)
   useEffect(() => {
     if (!open) return
-    const container = document.getElementById('mobile-scroll')
-    if (container) container.classList.add('scroll-locked')
-    return () => {
-      if (container) container.classList.remove('scroll-locked')
-    }
+    return lockMobileScroll()
   }, [open])
 
   const handleAddressSelect = useCallback(async (suggestion: DaDataSuggestion) => {

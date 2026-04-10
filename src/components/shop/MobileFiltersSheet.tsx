@@ -7,6 +7,7 @@ import { cn } from '@/utilities/cn'
 import { X, ChevronDown } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { priceRanges, occasions, colors, recipients } from '@/lib/constants'
+import { lockMobileScroll } from '@/utilities/lockMobileScroll'
 
 type Props = {
   totalProducts: number
@@ -24,14 +25,10 @@ export function MobileFiltersSheet({ totalProducts }: Props) {
     return () => window.removeEventListener('fleur:open-filters', handler)
   }, [])
 
-  // Lock scroll — use CSS class (inline style is overridden by !important)
+  // Lock scroll and restore position on close
   useEffect(() => {
     if (!open) return
-    const container = document.getElementById('mobile-scroll')
-    if (container) container.classList.add('scroll-locked')
-    return () => {
-      if (container) container.classList.remove('scroll-locked')
-    }
+    return lockMobileScroll()
   }, [open])
 
   const activeOccasion = searchParams.get('occasion') || ''
