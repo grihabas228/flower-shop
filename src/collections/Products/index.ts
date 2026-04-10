@@ -48,6 +48,7 @@ export const ProductsCollection: CollectionOverride = ({ defaultCollection }) =>
     variantOptions: true,
     variants: true,
     enableVariants: true,
+    variantDisplayType: true,
     gallery: true,
     priceInUSD: true,
     inventory: true,
@@ -196,6 +197,20 @@ export const ProductsCollection: CollectionOverride = ({ defaultCollection }) =>
           ],
         },
       ],
+    },
+    {
+      name: 'variantDisplayType',
+      type: 'select',
+      defaultValue: 'size',
+      options: [
+        { label: 'Размер (S / M / L)', value: 'size' },
+        { label: 'Количество (15 / 25 / 35)', value: 'quantity' },
+      ],
+      admin: {
+        position: 'sidebar',
+        description: 'Как варианты отображаются на карточке в каталоге',
+        condition: (data) => data?.enableVariants === true,
+      },
     },
     {
       name: 'categories',

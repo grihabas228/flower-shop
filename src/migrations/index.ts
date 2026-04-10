@@ -4,6 +4,7 @@ import * as migration_20260404_131918_add_search_and_redirects_plugins from './2
 import * as migration_20260406_211500_rename_zone_name_to_zone_type from './20260406_211500_rename_zone_name_to_zone_type';
 import * as migration_20260407_120000_delivery_zones_intervals from './20260407_120000_delivery_zones_intervals';
 import * as migration_20260407_140000_seed_missing_zones from './20260407_140000_seed_missing_zones';
+import * as migration_20260410_150000_add_variant_display_type from './20260410_150000_add_variant_display_type';
 
 export const migrations = [
   {
@@ -35,5 +36,10 @@ export const migrations = [
     up: migration_20260407_140000_seed_missing_zones.up,
     down: migration_20260407_140000_seed_missing_zones.down,
     name: '20260407_140000_seed_missing_zones',
+  },
+  {
+    up: migration_20260410_150000_add_variant_display_type.up,
+    down: migration_20260410_150000_add_variant_display_type.down,
+    name: '20260410_150000_add_variant_display_type',
   },
 ];

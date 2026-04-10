@@ -172,6 +172,11 @@ function RelatedProducts({ products }: { products: Product[] }) {
                   width: (item.image as Media).width || null,
                   height: (item.image as Media).height || null,
                 },
+                variantOption: item.variantOption
+                  ? typeof item.variantOption === 'object'
+                    ? { id: (item.variantOption as any).id }
+                    : item.variantOption
+                  : null,
               })) || []
 
           return (
@@ -183,6 +188,7 @@ function RelatedProducts({ products }: { products: Product[] }) {
                 slug: product.slug,
                 priceInUSD: product.priceInUSD ?? null,
                 enableVariants: product.enableVariants ?? null,
+                variantDisplayType: product.variantDisplayType ?? null,
                 inventory: product.inventory ?? null,
                 gallery,
                 variants: [],

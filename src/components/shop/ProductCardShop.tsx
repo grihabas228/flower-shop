@@ -21,21 +21,25 @@ type ProductVariant = {
   options: VariantOption[]
 }
 
+type GalleryItem = {
+  image: {
+    url: string
+    alt?: string | null
+    width?: number | null
+    height?: number | null
+  }
+  variantOption?: { id: number } | number | null
+}
+
 type ProductCardData = {
   id: number
   title: string
   slug: string
   priceInUSD?: number | null
   enableVariants?: boolean | null
+  variantDisplayType?: 'size' | 'quantity' | null
   inventory?: number | null
-  gallery?: Array<{
-    image: {
-      url: string
-      alt?: string | null
-      width?: number | null
-      height?: number | null
-    }
-  }> | null
+  gallery?: GalleryItem[] | null
   variants?: ProductVariant[]
   meta?: {
     image?: { url: string; alt?: string | null } | null
@@ -52,6 +56,53 @@ function formatPrice(price: number): string {
   return new Intl.NumberFormat('ru-RU').format(price)
 }
 
+/**
+ * Derive a compact label from the full variant options label.
+ *
+ * For "size" display: try to abbreviate ("Large" → "L", "Medium" → "M", "Small" → "S")
+ * or use the first word if it's already short.
+ *
+ * For "quantity" display: extract the leading number ("25 роз" → "25", "51 шт" → "51")
+ * or fall back to the raw label.
+ */
+function compactLabel(raw: string, displayType: 'size' | 'quantity'): string {
+  const trimmed = raw.trim()
+
+  if (displayType === 'quantity') {
+    // Try to extract leading number
+    const numMatch = trimmed.match(/^(\d+)/)
+    if (numMatch) return numMatch[1]!
+    return trimmed
+  }
+
+  // "size" mode — abbreviate known size words, else use first letter
+  const lower = trimmed.toLowerCase()
+  const abbreviations: Record<string, string> = {
+    small: 'S',
+    medium: 'M',
+    large: 'L',
+    'x-large': 'XL',
+    'extra large': 'XL',
+    xl: 'XL',
+    xs: 'XS',
+    'x-small': 'XS',
+    маленький: 'S',
+    средний: 'M',
+    большой: 'L',
+  }
+
+  for (const [key, abbr] of Object.entries(abbreviations)) {
+    if (lower.includes(key)) return abbr
+  }
+
+  // Already short (<=3 chars) — use as-is
+  if (trimmed.length <= 3) return trimmed
+
+  // Fall back to first word (truncated to 4 chars)
+  const firstWord = trimmed.split(/[\s,]+/)[0] || trimmed
+  return firstWord.length <= 4 ? firstWord : firstWord.slice(0, 3)
+}
+
 export function ProductCardShop({ product, deliveryTime, bonusPoints }: Props) {
   const { addItem, isLoading } = useCart()
   const { estimatedTime } = useDelivery()
@@ -62,6 +113,7 @@ export function ProductCardShop({ product, deliveryTime, bonusPoints }: Props) {
 
   const variants = product.variants || []
   const hasVariants = product.enableVariants && variants.length > 0
+  const displayType = product.variantDisplayType ?? 'size'
 
   const currentPrice = useMemo(() => {
     if (hasVariants && variants[selectedVariantIndex]) {
@@ -72,20 +124,45 @@ export function ProductCardShop({ product, deliveryTime, bonusPoints }: Props) {
 
   const selectedVariant = hasVariants ? variants[selectedVariantIndex] : undefined
 
-  const image = useMemo(() => {
-    const galleryImage = product.gallery?.[0]?.image
-    if (galleryImage?.url) return galleryImage
-    if (product.meta?.image?.url) return product.meta.image
-    return null
-  }, [product.gallery, product.meta])
+  // Resolve image: if selected variant has a matched gallery image, use it
+  const { mainImage, hoverImage } = useMemo(() => {
+    const gallery = product.gallery || []
+    let main = gallery[0]?.image || product.meta?.image || null
+    let hover = gallery.length > 1 ? gallery[1]?.image || null : null
 
-  // Second image for hover effect
-  const secondImage = useMemo(() => {
-    if (product.gallery && product.gallery.length > 1) {
-      return product.gallery[1]?.image || null
+    if (hasVariants && selectedVariant && gallery.length > 0) {
+      // Find gallery image matching selected variant's first option
+      const optionIds = selectedVariant.options.map((o) => o.id)
+      const variantImage = gallery.find((item) => {
+        if (!item.variantOption) return false
+        const voId =
+          typeof item.variantOption === 'object' && 'id' in item.variantOption
+            ? item.variantOption.id
+            : item.variantOption
+        return optionIds.includes(voId as number)
+      })
+      if (variantImage?.image?.url) {
+        main = variantImage.image
+        // Find a different image for hover
+        const otherImage = gallery.find(
+          (item) => item.image?.url && item.image.url !== variantImage.image.url,
+        )
+        hover = otherImage?.image || null
+      }
     }
-    return null
-  }, [product.gallery])
+
+    return { mainImage: main, hoverImage: hover }
+  }, [product.gallery, product.meta, hasVariants, selectedVariant])
+
+  // Compact labels for the switcher
+  const compactLabels = useMemo(() => {
+    return variants.map((v) => {
+      const fullLabel = v.options.map((o) => o.label).join(', ')
+      return compactLabel(fullLabel, displayType)
+    })
+  }, [variants, displayType])
+
+  const computedBonus = bonusPoints ?? Math.round(currentPrice * 0.05)
 
   const handleAddToCart = useCallback(
     async (e: React.MouseEvent) => {
@@ -116,16 +193,6 @@ export function ProductCardShop({ product, deliveryTime, bonusPoints }: Props) {
     setSelectedVariantIndex(index)
   }, [])
 
-  // Variant pill labels
-  const variantPills = useMemo(() => {
-    return variants.map((v) => {
-      const label = v.options.map((o) => o.label).join(', ')
-      return label || `Вариант ${v.id}`
-    })
-  }, [variants])
-
-  const computedBonus = bonusPoints ?? Math.round(currentPrice * 0.05)
-
   return (
     <Link
       href={`/products/${product.slug}`}
@@ -135,22 +202,22 @@ export function ProductCardShop({ product, deliveryTime, bonusPoints }: Props) {
     >
       {/* Image container */}
       <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-[#f5f0ea]">
-        {image ? (
+        {mainImage?.url ? (
           <>
             <Image
-              src={image.url}
-              alt={image.alt || product.title}
+              src={mainImage.url}
+              alt={mainImage.alt || product.title}
               fill
               className={cn(
                 'object-cover transition-all duration-700 ease-out',
-                isHovered && secondImage ? 'opacity-0 scale-[1.02]' : 'opacity-100 scale-100',
+                isHovered && hoverImage ? 'opacity-0 scale-[1.02]' : 'opacity-100 scale-100',
               )}
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             />
-            {secondImage && (
+            {hoverImage?.url && (
               <Image
-                src={secondImage.url}
-                alt={secondImage.alt || product.title}
+                src={hoverImage.url}
+                alt={hoverImage.alt || product.title}
                 fill
                 className={cn(
                   'object-cover transition-all duration-700 ease-out',
@@ -187,7 +254,9 @@ export function ProductCardShop({ product, deliveryTime, bonusPoints }: Props) {
         {/* Delivery badge */}
         <div className="absolute bottom-3 left-3 z-10 flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 shadow-sm backdrop-blur-sm">
           <Clock className="h-3.5 w-3.5 text-[#8a8a8a]" strokeWidth={1.5} />
-          <span className="font-sans text-[11px] font-medium text-[#5a5a5a]">{resolvedDeliveryTime}</span>
+          <span className="font-sans text-[11px] font-medium text-[#5a5a5a]">
+            {resolvedDeliveryTime}
+          </span>
         </div>
       </div>
 
@@ -198,14 +267,24 @@ export function ProductCardShop({ product, deliveryTime, bonusPoints }: Props) {
           {product.title}
         </h3>
 
-        {/* Variant pills — mobile: max 3 visible + "+ещё N" overflow badge */}
-        {hasVariants && variantPills.length > 0 && (
-          <VariantPillsRow
-            pills={variantPills}
-            variants={variants}
-            selectedIndex={selectedVariantIndex}
-            onSelect={handleVariantClick}
-          />
+        {/* Compact variant switcher — single row, never wraps */}
+        {hasVariants && compactLabels.length > 1 && (
+          <div className="mb-2.5 flex items-center gap-1 overflow-hidden">
+            {compactLabels.map((label, i) => (
+              <button
+                key={variants[i]!.id}
+                onClick={(e) => handleVariantClick(e, i)}
+                className={cn(
+                  'shrink-0 cursor-pointer rounded-full px-2.5 py-1 font-sans text-[12px] font-medium tabular-nums transition-all duration-200',
+                  i === selectedVariantIndex
+                    ? 'bg-[#2d2d2d] text-[#faf5f0]'
+                    : 'border border-[#e0dbd4] text-[#5a5a5a] hover:border-[#c8c3bb]',
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         )}
 
         {/* Bonus points */}
@@ -237,51 +316,5 @@ export function ProductCardShop({ product, deliveryTime, bonusPoints }: Props) {
         </div>
       </div>
     </Link>
-  )
-}
-
-// ─── Mobile-aware variant pills with overflow ───────────────────────────────
-
-const MOBILE_MAX_PILLS = 3
-
-type VariantPillsRowProps = {
-  pills: string[]
-  variants: Array<{ id: number }>
-  selectedIndex: number
-  onSelect: (e: React.MouseEvent, index: number) => void
-}
-
-function VariantPillsRow({ pills, variants, selectedIndex, onSelect }: VariantPillsRowProps) {
-  const overflow = pills.length - MOBILE_MAX_PILLS
-
-  return (
-    <div className="mb-3 flex flex-wrap gap-1.5">
-      {pills.map((label, i) => {
-        // On mobile (<sm) hide pills beyond MOBILE_MAX_PILLS
-        // Exception: always show the selected pill
-        const hiddenOnMobile = i >= MOBILE_MAX_PILLS && i !== selectedIndex
-        return (
-          <button
-            key={variants[i]!.id}
-            onClick={(e) => onSelect(e, i)}
-            className={cn(
-              'cursor-pointer rounded-full border px-3 py-1 font-sans text-[11px] font-medium transition-all duration-200',
-              i === selectedIndex
-                ? 'border-[#2d2d2d] bg-[#2d2d2d] text-white'
-                : 'border-[#e0dbd4] bg-white text-[#5a5a5a] hover:border-[#c8c3bb]',
-              hiddenOnMobile && 'hidden sm:inline-flex',
-            )}
-          >
-            {label}
-          </button>
-        )
-      })}
-      {/* Overflow badge — mobile only */}
-      {overflow > 0 && (
-        <span className="inline-flex items-center rounded-full border border-[#e0dbd4] bg-[#faf5f0] px-2.5 py-1 font-sans text-[11px] text-[#8a8a8a] sm:hidden">
-          +ещё&nbsp;{overflow}
-        </span>
-      )}
-    </div>
   )
 }

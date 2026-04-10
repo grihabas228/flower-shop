@@ -28,6 +28,11 @@ function transformProductForCard(product: Partial<Product>) {
           width: (item.image as Media).width || null,
           height: (item.image as Media).height || null,
         },
+        variantOption: item.variantOption
+          ? typeof item.variantOption === 'object'
+            ? { id: (item.variantOption as VariantOption).id }
+            : item.variantOption
+          : null,
       })) || []
 
   const variants =
@@ -48,6 +53,7 @@ function transformProductForCard(product: Partial<Product>) {
     slug: product.slug!,
     priceInUSD: product.priceInUSD ?? null,
     enableVariants: product.enableVariants ?? null,
+    variantDisplayType: product.variantDisplayType ?? null,
     inventory: product.inventory ?? null,
     gallery,
     variants,

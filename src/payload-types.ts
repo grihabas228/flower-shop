@@ -313,6 +313,7 @@ export interface Product {
   };
   priceInUSDEnabled?: boolean | null;
   priceInUSD?: number | null;
+  variantDisplayType?: ('size' | 'quantity') | null;
   relatedProducts?: (number | Product)[] | null;
   meta?: {
     title?: string | null;
@@ -1909,6 +1910,7 @@ export interface ProductsSelect<T extends boolean = true> {
   variants?: T;
   priceInUSDEnabled?: T;
   priceInUSD?: T;
+  variantDisplayType?: T;
   relatedProducts?: T;
   meta?:
     | T
