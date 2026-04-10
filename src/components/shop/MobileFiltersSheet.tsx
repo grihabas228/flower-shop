@@ -24,13 +24,13 @@ export function MobileFiltersSheet({ totalProducts }: Props) {
     return () => window.removeEventListener('fleur:open-filters', handler)
   }, [])
 
-  // Lock body scroll when open
+  // Lock scroll — use CSS class (inline style is overridden by !important)
   useEffect(() => {
     if (!open) return
     const container = document.getElementById('mobile-scroll')
-    if (container) container.style.overflow = 'hidden'
+    if (container) container.classList.add('scroll-locked')
     return () => {
-      if (container) container.style.overflow = ''
+      if (container) container.classList.remove('scroll-locked')
     }
   }, [open])
 

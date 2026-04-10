@@ -246,6 +246,11 @@
       height: 100dvh;
     }
   }
+
+  /* Scroll lock — higher specificity beats the base !important rule */
+  .mobile-scroll-container.scroll-locked {
+    overflow-y: hidden !important;
+  }
 }
 
 html {

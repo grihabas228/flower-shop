@@ -173,11 +173,12 @@ function MenuDrawer({ onClose }: { onClose: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, searchParams])
 
-  // Lock scroll
+  // Lock scroll — use CSS class on mobile scroll container
   useEffect(() => {
-    document.body.style.overflow = 'hidden'
+    const container = document.getElementById('mobile-scroll')
+    if (container) container.classList.add('scroll-locked')
     return () => {
-      document.body.style.overflow = 'unset'
+      if (container) container.classList.remove('scroll-locked')
     }
   }, [])
 
