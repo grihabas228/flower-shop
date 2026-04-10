@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { Search, Heart, User, ShoppingBag, MapPin, Phone, Clock, Menu, X } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Search, User, ShoppingBag, MapPin, Phone, Clock, X } from 'lucide-react'
+import { MOBILE_SCROLL_ID } from '@/components/MobileScrollContainer'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/utilities/cn'
 import { Cart } from '@/components/Cart'
@@ -61,16 +62,25 @@ export function HeaderClient({ header }: Props) {
 
   useEffect(() => {
     let ticking = false
-    const onScroll = () => {
+
+    // Desktop: listen on window (body scrolls normally)
+    const onWindowScroll = () => {
       if (ticking) return
       ticking = true
       requestAnimationFrame(() => {
-        const y = window.scrollY
+        setIsScrolled(window.scrollY > 50)
+        ticking = false
+      })
+    }
 
-        // Desktop info bar
-        setIsScrolled(y > 50)
+    // Mobile: listen on the inner scroll container (body is overflow:hidden)
+    const onContainerScroll = (e: Event) => {
+      if (ticking) return
+      ticking = true
+      requestAnimationFrame(() => {
+        const el = e.target as HTMLElement
+        const y = el.scrollTop
 
-        // Mobile hide/show — only when scrolled past header height
         if (y > MOBILE_HEADER_H) {
           const delta = y - lastScrollY.current
           if (delta > scrollThreshold) {
@@ -87,8 +97,15 @@ export function HeaderClient({ header }: Props) {
       })
     }
 
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    window.addEventListener('scroll', onWindowScroll, { passive: true })
+
+    const container = document.getElementById(MOBILE_SCROLL_ID)
+    container?.addEventListener('scroll', onContainerScroll, { passive: true })
+
+    return () => {
+      window.removeEventListener('scroll', onWindowScroll)
+      container?.removeEventListener('scroll', onContainerScroll)
+    }
   }, [])
 
   // Close search on route change

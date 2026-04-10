@@ -4,6 +4,7 @@ import { AdminBar } from '@/components/AdminBar'
 import { Footer } from '@/components/Footer'
 import { Header } from '@/components/Header'
 import { MobileBottomNav } from '@/components/MobileBottomNav'
+import { MobileScrollContainer } from '@/components/MobileScrollContainer'
 import { LivePreviewListener } from '@/components/LivePreviewListener'
 import { Providers } from '@/providers'
 import { InitTheme } from '@/providers/Theme/InitTheme'
@@ -42,8 +43,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <LivePreviewListener />
 
           <Header />
-          <main className="safe-main-bottom md:pb-0">{children}</main>
-          <Footer />
+          <MobileScrollContainer>
+            <main className="safe-main-bottom md:pb-0">{children}</main>
+            <Footer />
+          </MobileScrollContainer>
           <MobileBottomNav />
         </Providers>
       </body>
