@@ -103,7 +103,7 @@ export function MobileFiltersSheet({ totalProducts }: Props) {
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="fixed bottom-0 left-0 right-0 z-[70] max-h-[85dvh] overflow-y-auto rounded-t-3xl bg-[#faf5f0] md:hidden safe-bottom-nav"
+            className="fixed bottom-0 left-0 right-0 z-[70] top-[120px] overflow-y-auto rounded-t-3xl bg-[#faf5f0] md:hidden safe-bottom-nav"
           >
             {/* Handle */}
             <div className="sticky top-0 z-10 bg-[#faf5f0] pt-3 pb-2 px-5">
