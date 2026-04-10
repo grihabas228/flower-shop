@@ -5,6 +5,7 @@ import { ProductInfo } from '@/components/product/ProductInfo'
 import { ProductCardShop } from '@/components/shop/ProductCardShop'
 import { RenderBlocks } from '@/blocks/RenderBlocks'
 import { ProductJsonLd } from '@/components/product/ProductJsonLd'
+import { FloatingCartButton } from '@/components/product/FloatingCartButton'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import { draftMode } from 'next/headers'
@@ -150,6 +151,15 @@ export default async function ProductPage({ params }: Args) {
           )}
         </div>
       </div>
+
+      {/* Mobile floating add-to-cart — appears when inline button scrolls off */}
+      <Suspense fallback={null}>
+        <FloatingCartButton
+          productId={product.id}
+          price={price || 0}
+          inStock={!!hasStock}
+        />
+      </Suspense>
     </React.Fragment>
   )
 }

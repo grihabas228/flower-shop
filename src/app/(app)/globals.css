@@ -219,12 +219,15 @@
 /* ═══ Mobile scroll containment ═══
    Prevent the browser from hiding/showing its address bar on scroll
    by locking body overflow and putting scroll on an inner container.
-   Only active below the md breakpoint (< 768px). */
+   Only active below the md breakpoint (< 768px).
+   The scroll container uses flex:1 to fill remaining space after
+   the header spacer, regardless of header height (88px default
+   or 132px on /shop with category bar). */
 @media (max-width: 767.98px) {
   html, body {
     overflow: hidden !important;
     height: 100dvh !important;
-    height: 100vh !important; /* fallback for browsers without dvh */
+    height: 100vh !important;
   }
   @supports (height: 100dvh) {
     html, body {
@@ -233,17 +236,11 @@
   }
 
   .mobile-scroll-container {
+    flex: 1 1 0%;
     overflow-y: auto !important;
     overflow-x: hidden !important;
     -webkit-overflow-scrolling: touch;
-    /* Fill remaining space below fixed header (56px) */
-    height: calc(100dvh - 56px);
-    height: calc(100vh - 56px); /* fallback */
-  }
-  @supports (height: 100dvh) {
-    .mobile-scroll-container {
-      height: calc(100dvh - 56px);
-    }
+    min-height: 0; /* needed for flex child to scroll properly */
   }
 }
 

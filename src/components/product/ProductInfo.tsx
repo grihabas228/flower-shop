@@ -256,8 +256,9 @@ export function ProductInfo({ product }: Props) {
 
       <div className="h-px bg-[#e8e4de]" />
 
-      {/* Add to cart button */}
+      {/* Add to cart button — id used by FloatingCartButton intersection observer */}
       <button
+        id="product-add-to-cart"
         onClick={handleAddToCart}
         disabled={isLoading || !inStock}
         className={cn(

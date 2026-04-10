@@ -1,4 +1,5 @@
 import { ShopFilters } from '@/components/shop/ShopFilters'
+import { MobileFiltersSheet } from '@/components/shop/MobileFiltersSheet'
 import { ShopSearch } from '@/components/shop/ShopSearch'
 import { ProductCardShop } from '@/components/shop/ProductCardShop'
 import configPromise from '@payload-config'
@@ -156,9 +157,12 @@ export default async function ShopPage({ searchParams }: Props) {
         </Suspense>
       </div>
 
-      {/* Filters */}
+      {/* Filters — desktop inline, mobile bottom sheet */}
       <Suspense fallback={<FiltersSkeleton />}>
-        <ShopFilters categories={categories} totalProducts={products.totalDocs} />
+        <div className="hidden md:block">
+          <ShopFilters categories={categories} totalProducts={products.totalDocs} />
+        </div>
+        <MobileFiltersSheet totalProducts={products.totalDocs} />
       </Suspense>
 
       {/* Product grid */}

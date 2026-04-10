@@ -1,18 +1,19 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Search, User, ShoppingBag, MapPin, Phone, Clock, X } from 'lucide-react'
-import { MOBILE_SCROLL_ID } from '@/components/MobileScrollContainer'
+import { Search, User, ShoppingBag, MapPin, Phone, Clock, X, SlidersHorizontal } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/utilities/cn'
 import { Cart } from '@/components/Cart'
 import { AuthModal } from '@/components/AuthModal'
 import { useAuth } from '@/providers/Auth'
+import { DeliveryAddressBar } from '@/components/DeliveryAddressBar'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import React, { Suspense } from 'react'
 
 import { MobileMenu } from './MobileMenu'
+import { MOBILE_SCROLL_ID } from '@/components/MobileScrollContainer'
 import type { Header } from 'src/payload-types'
 
 const defaultNavLinks = [
@@ -25,12 +26,25 @@ const defaultNavLinks = [
   { label: 'Доставка', href: '/delivery' },
 ]
 
-// Fixed heights so nothing ever shifts
-const MOBILE_HEADER_H = 56 // px — fixed on mobile
+const categoryLinks = [
+  { label: 'Все', href: '/shop', slug: '' },
+  { label: 'Букеты', href: '/shop?category=bukety', slug: 'bukety' },
+  { label: 'Розы', href: '/shop?category=rozy', slug: 'rozy' },
+  { label: 'Композиции', href: '/shop?category=kompozicii', slug: 'kompozicii' },
+  { label: 'Подарки', href: '/shop?category=podarki', slug: 'podarki' },
+  { label: 'Акции', href: '/shop?category=akcii', slug: 'akcii' },
+]
+
+// Fixed heights
+const MOBILE_ADDRESS_BAR_H = 32
+const MOBILE_HEADER_H = 56
+const MOBILE_CATEGORY_BAR_H = 44
+const MOBILE_TOTAL_SHOP_H = MOBILE_ADDRESS_BAR_H + MOBILE_HEADER_H + MOBILE_CATEGORY_BAR_H // 132
+const MOBILE_TOTAL_OTHER_H = MOBILE_ADDRESS_BAR_H + MOBILE_HEADER_H // 88
 const DESKTOP_INFO_BAR_H = 32
 const DESKTOP_MAIN_BAR_H = 70
 const DESKTOP_NAV_BAR_H = 48
-const DESKTOP_HEADER_FULL_H = DESKTOP_INFO_BAR_H + DESKTOP_MAIN_BAR_H + DESKTOP_NAV_BAR_H // 150
+const DESKTOP_HEADER_FULL_H = DESKTOP_INFO_BAR_H + DESKTOP_MAIN_BAR_H + DESKTOP_NAV_BAR_H
 
 type Props = {
   header: Header
@@ -47,10 +61,11 @@ export function HeaderClient({ header }: Props) {
   // Desktop: collapse top info bar on scroll
   const [isScrolled, setIsScrolled] = useState(false)
 
-  // Mobile: hide header on scroll down, show on scroll up
-  const [mobileHidden, setMobileHidden] = useState(false)
+  // Mobile shop: compact mode on scroll down
+  const [shopCompact, setShopCompact] = useState(false)
   const lastScrollY = useRef(0)
-  const scrollThreshold = 10 // px — avoid jitter on small scrolls
+
+  const isShopPage = pathname === '/shop' || pathname.startsWith('/shop?')
 
   const handleAccountClick = () => {
     if (user) {
@@ -60,10 +75,20 @@ export function HeaderClient({ header }: Props) {
     }
   }
 
+  // Active category from URL
+  const activeCategory = (() => {
+    if (typeof window === 'undefined') return ''
+    try {
+      const url = new URL(window.location.href)
+      return url.searchParams.get('category') || ''
+    } catch {
+      return ''
+    }
+  })()
+
   useEffect(() => {
     let ticking = false
 
-    // Desktop: listen on window (body scrolls normally)
     const onWindowScroll = () => {
       if (ticking) return
       ticking = true
@@ -73,23 +98,21 @@ export function HeaderClient({ header }: Props) {
       })
     }
 
-    // Mobile: listen on the inner scroll container (body is overflow:hidden)
     const onContainerScroll = (e: Event) => {
       if (ticking) return
       ticking = true
       requestAnimationFrame(() => {
         const el = e.target as HTMLElement
         const y = el.scrollTop
+        const delta = y - lastScrollY.current
 
-        if (y > MOBILE_HEADER_H) {
-          const delta = y - lastScrollY.current
-          if (delta > scrollThreshold) {
-            setMobileHidden(true) // scrolling down
-          } else if (delta < -scrollThreshold) {
-            setMobileHidden(false) // scrolling up
+        // Shop compact: toggle after scrolling 80px past top
+        if (isShopPage) {
+          if (y > 80 && delta > 5) {
+            setShopCompact(true)
+          } else if (delta < -5 || y <= 40) {
+            setShopCompact(false)
           }
-        } else {
-          setMobileHidden(false) // at top
         }
 
         lastScrollY.current = y
@@ -98,7 +121,6 @@ export function HeaderClient({ header }: Props) {
     }
 
     window.addEventListener('scroll', onWindowScroll, { passive: true })
-
     const container = document.getElementById(MOBILE_SCROLL_ID)
     container?.addEventListener('scroll', onContainerScroll, { passive: true })
 
@@ -106,63 +128,135 @@ export function HeaderClient({ header }: Props) {
       window.removeEventListener('scroll', onWindowScroll)
       container?.removeEventListener('scroll', onContainerScroll)
     }
-  }, [])
+  }, [isShopPage])
 
   // Close search on route change
   useEffect(() => {
     setSearchOpen(false)
+    setShopCompact(false)
+    lastScrollY.current = 0
   }, [pathname])
+
+  // Mobile spacer height
+  const mobileSpacer = isShopPage ? MOBILE_TOTAL_SHOP_H : MOBILE_TOTAL_OTHER_H
 
   return (
     <>
       {/* ═══════ MOBILE HEADER (< lg) ═══════ */}
-      <header
-        className={cn(
-          'fixed top-0 left-0 right-0 z-50 lg:hidden',
-          'bg-[#faf5f0] border-b border-[#e8e4de]/50',
-          'transition-transform duration-300 ease-in-out',
-          mobileHidden ? '-translate-y-full' : 'translate-y-0',
-        )}
-        style={{ height: MOBILE_HEADER_H }}
-      >
-        <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-4">
-          {/* Burger */}
-          <Suspense fallback={null}>
-            <MobileMenu navLinks={navLinks} />
-          </Suspense>
+      <div className="fixed top-0 left-0 right-0 z-50 lg:hidden">
+        {/* Row 1: Delivery address bar — always visible */}
+        <DeliveryAddressBar />
 
-          {/* Logo */}
-          <Link
-            href="/"
-            className="font-serif text-[20px] uppercase tracking-[0.2em] text-[#2d2d2d]"
-          >
-            Fleur
-          </Link>
-
-          {/* Icons */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setSearchOpen(true)}
-              className="p-2 text-[#2d2d2d] transition-colors hover:text-[#5a5a5a]"
-              aria-label="Поиск"
-            >
-              <Search className="h-5 w-5" strokeWidth={1.5} />
-            </button>
-            <Suspense
-              fallback={
-                <button className="relative p-2 text-[#2d2d2d]" aria-label="Корзина">
-                  <ShoppingBag className="h-5 w-5" strokeWidth={1.5} />
-                </button>
-              }
-            >
-              <Cart />
+        {/* Row 2: Main header bar — hides in shop compact mode */}
+        <header
+          className={cn(
+            'bg-[#faf5f0] border-b border-[#e8e4de]/50 transition-all duration-200',
+            isShopPage && shopCompact
+              ? 'h-0 overflow-hidden opacity-0'
+              : 'opacity-100',
+          )}
+          style={{ height: isShopPage && shopCompact ? 0 : MOBILE_HEADER_H }}
+        >
+          <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
+            {/* Burger */}
+            <Suspense fallback={null}>
+              <MobileMenu navLinks={navLinks} />
             </Suspense>
-          </div>
-        </div>
-      </header>
 
-      {/* Mobile spacer — fixed height, never changes */}
-      <div className="h-[56px] lg:hidden" />
+            {/* Logo */}
+            <Link
+              href="/"
+              className="font-serif text-[20px] uppercase tracking-[0.2em] text-[#2d2d2d]"
+            >
+              Fleur
+            </Link>
+
+            {/* Icons */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="p-2 text-[#2d2d2d] transition-colors hover:text-[#5a5a5a]"
+                aria-label="Поиск"
+              >
+                <Search className="h-5 w-5" strokeWidth={1.5} />
+              </button>
+              <Suspense
+                fallback={
+                  <button className="relative p-2 text-[#2d2d2d]" aria-label="Корзина">
+                    <ShoppingBag className="h-5 w-5" strokeWidth={1.5} />
+                  </button>
+                }
+              >
+                <Cart />
+              </Suspense>
+            </div>
+          </div>
+        </header>
+
+        {/* Row 3: Category bar — only on /shop */}
+        {isShopPage && (
+          <div
+            className={cn(
+              'bg-[#faf5f0] border-b border-[#e8e4de]/30 transition-all duration-200',
+            )}
+            style={{ height: MOBILE_CATEGORY_BAR_H }}
+          >
+            <div className="flex h-full items-center gap-2 px-3">
+              {/* Filter button — visible only in compact mode */}
+              <button
+                onClick={() => {
+                  // Dispatch custom event for ShopFilters bottom sheet
+                  window.dispatchEvent(new CustomEvent('fleur:open-filters'))
+                }}
+                className={cn(
+                  'shrink-0 flex items-center gap-1.5 rounded-full border border-[#e8e4de] px-3 py-1.5 text-[12px] font-medium text-[#2d2d2d] transition-all',
+                  'hover:border-[#e8b4b8]',
+                )}
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" strokeWidth={1.5} />
+                <span className="hidden min-[400px]:inline">Фильтры</span>
+              </button>
+
+              {/* Categories horizontal scroll */}
+              <div className="flex-1 overflow-x-auto scrollbar-hide">
+                <div className="flex items-center gap-1.5 pr-3">
+                  {categoryLinks.map((cat) => {
+                    const isActive = cat.slug === activeCategory || (cat.slug === '' && !activeCategory)
+                    return (
+                      <Link
+                        key={cat.slug}
+                        href={cat.href}
+                        className={cn(
+                          'shrink-0 rounded-full px-3.5 py-1.5 font-sans text-[12px] font-medium transition-all whitespace-nowrap',
+                          isActive
+                            ? 'bg-[#2d2d2d] text-[#faf5f0]'
+                            : 'text-[#5a5a5a] hover:bg-[#f0ebe3]',
+                        )}
+                      >
+                        {cat.label}
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Search — visible in compact mode */}
+              {shopCompact && (
+                <button
+                  onClick={() => setSearchOpen(true)}
+                  className="shrink-0 p-1.5 text-[#2d2d2d]"
+                  aria-label="Поиск"
+                >
+                  <Search className="h-4.5 w-4.5" strokeWidth={1.5} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile spacer — fixed, prevents content jump */}
+      <div className="lg:hidden" style={{ height: mobileSpacer }} />
 
       {/* ═══════ MOBILE SEARCH OVERLAY ═══════ */}
       <AnimatePresence>
@@ -199,9 +293,8 @@ export function HeaderClient({ header }: Props) {
         )}
       </AnimatePresence>
 
-      {/* ═══════ DESKTOP HEADER (≥ lg) ═══════ */}
+      {/* ═══════ DESKTOP HEADER (≥ lg) — unchanged ═══════ */}
       <header className="fixed top-0 left-0 right-0 z-50 hidden lg:block bg-[#faf5f0] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-        {/* Top Info Bar — collapses on scroll */}
         <AnimatePresence>
           {!isScrolled && (
             <motion.div
@@ -234,7 +327,6 @@ export function HeaderClient({ header }: Props) {
           )}
         </AnimatePresence>
 
-        {/* Main Header Bar */}
         <div className="border-b border-[#e8e4de]/50 bg-[#faf5f0]">
           <div className="mx-auto max-w-7xl px-4">
             <div
@@ -243,7 +335,6 @@ export function HeaderClient({ header }: Props) {
                 isScrolled ? 'h-14' : 'h-[70px]',
               )}
             >
-              {/* Logo */}
               <motion.div
                 animate={{ fontSize: isScrolled ? '20px' : '26px' }}
                 transition={{ duration: 0.3, ease: 'easeInOut' }}
@@ -257,7 +348,6 @@ export function HeaderClient({ header }: Props) {
                 </Link>
               </motion.div>
 
-              {/* Search Bar */}
               <div className="mx-12 max-w-[400px] flex-1">
                 <div className="group relative w-full">
                   <input
@@ -272,7 +362,6 @@ export function HeaderClient({ header }: Props) {
                 </div>
               </div>
 
-              {/* Icons */}
               <div className="flex items-center gap-4">
                 <button
                   onClick={handleAccountClick}
@@ -295,7 +384,6 @@ export function HeaderClient({ header }: Props) {
           </div>
         </div>
 
-        {/* Navigation Bar */}
         <nav className="border-b border-[#e8e4de]/30 bg-[#faf5f0]">
           <div className="mx-auto max-w-7xl px-4">
             <ul className="flex h-12 items-center justify-center gap-10">
@@ -333,10 +421,7 @@ export function HeaderClient({ header }: Props) {
 
       {/* Desktop spacer */}
       <div
-        className={cn(
-          'hidden lg:block transition-all duration-300',
-          isScrolled ? 'h-[110px]' : `h-[${DESKTOP_HEADER_FULL_H}px]`,
-        )}
+        className="hidden lg:block transition-all duration-300"
         style={{ height: isScrolled ? 110 : DESKTOP_HEADER_FULL_H }}
       />
 

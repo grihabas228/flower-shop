@@ -266,7 +266,7 @@ export function HeroSection({ slides }: Props) {
         >
           <div className="flex w-full flex-col rounded-2xl border border-[#e8e4de] bg-white/60 overflow-hidden backdrop-blur-sm">
             {/* Address Input */}
-            <div className="p-4 pb-0">
+            <div id="hero-address-input" className="p-4 pb-0">
               <div className="relative">
                 <AddressInput
                   value={addressValue}
