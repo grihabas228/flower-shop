@@ -231,20 +231,22 @@ export function AddressBottomSheet() {
             </div>
 
             <div className="space-y-4 px-5 pb-6">
-              {/* AddressInput */}
-              <AddressInput
-                value={addressValue}
-                onChange={(val) => {
-                  setAddressValue(val)
-                  if (addressSelected) {
-                    setAddressSelected(false)
-                    setZoneResult(null)
-                    setAddressUnavailable(false)
-                  }
-                }}
-                onSelect={handleAddressSelect}
-                placeholder="Укажите улицу и дом"
-              />
+              {/* AddressInput — wrapper forces 16px font to prevent iOS zoom */}
+              <div className="ios-no-zoom">
+                <AddressInput
+                  value={addressValue}
+                  onChange={(val) => {
+                    setAddressValue(val)
+                    if (addressSelected) {
+                      setAddressSelected(false)
+                      setZoneResult(null)
+                      setAddressUnavailable(false)
+                    }
+                  }}
+                  onSelect={handleAddressSelect}
+                  placeholder="Укажите улицу и дом"
+                />
+              </div>
 
               {/* Map */}
               <div className="h-[200px] rounded-2xl overflow-hidden border border-[#e8e4de]">

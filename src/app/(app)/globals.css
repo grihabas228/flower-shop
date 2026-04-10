@@ -236,11 +236,18 @@
   }
 
   .mobile-scroll-container {
-    flex: 1 1 0%;
     overflow-y: auto !important;
     overflow-x: hidden !important;
     -webkit-overflow-scrolling: touch;
-    min-height: 0; /* needed for flex child to scroll properly */
+    /* Fill viewport below fixed header. --mobile-header-h is set by
+       HeaderClient (80px default, 120px on /shop with categories). */
+    height: calc(100dvh - var(--mobile-header-h, 80px));
+    height: calc(100vh - var(--mobile-header-h, 80px)); /* fallback */
+  }
+  @supports (height: 100dvh) {
+    .mobile-scroll-container {
+      height: calc(100dvh - var(--mobile-header-h, 80px));
+    }
   }
 }
 
@@ -268,6 +275,13 @@ button {
 button:disabled,
 a[aria-disabled="true"] {
   cursor: not-allowed;
+}
+
+/* Prevent iOS auto-zoom on inputs with font-size < 16px.
+   Apply this class on a wrapper around inputs to force 16px. */
+.ios-no-zoom input,
+.ios-no-zoom textarea {
+  font-size: 16px !important;
 }
 
 .scrollbar-hide {

@@ -45,12 +45,12 @@ const categoryLinks = [
   { label: 'Акции', href: '/shop?category=akcii', slug: 'akcii' },
 ]
 
-// Fixed heights — mobile
-const MOBILE_ADDRESS_BAR_H = 32
-const MOBILE_MAIN_BAR_H = 48
-const MOBILE_CATEGORY_BAR_H = 40
-const MOBILE_TOTAL_OTHER_H = MOBILE_ADDRESS_BAR_H + MOBILE_MAIN_BAR_H // 80
-const MOBILE_TOTAL_SHOP_H = MOBILE_ADDRESS_BAR_H + MOBILE_MAIN_BAR_H + MOBILE_CATEGORY_BAR_H // 120
+// Fixed heights — mobile (exported for MobileScrollContainer)
+export const MOBILE_ADDRESS_BAR_H = 32
+export const MOBILE_MAIN_BAR_H = 48
+export const MOBILE_CATEGORY_BAR_H = 40
+export const MOBILE_HEADER_H = MOBILE_ADDRESS_BAR_H + MOBILE_MAIN_BAR_H // 80
+export const MOBILE_HEADER_SHOP_H = MOBILE_ADDRESS_BAR_H + MOBILE_MAIN_BAR_H + MOBILE_CATEGORY_BAR_H // 120
 
 // Fixed heights — desktop
 const DESKTOP_INFO_BAR_H = 32
@@ -106,7 +106,11 @@ export function HeaderClient({ header }: Props) {
     setSearchOpen(false)
   }, [pathname])
 
-  const mobileSpacer = isShopPage ? MOBILE_TOTAL_SHOP_H : MOBILE_TOTAL_OTHER_H
+  // Set CSS variable for MobileScrollContainer padding-top
+  useEffect(() => {
+    const h = isShopPage ? MOBILE_HEADER_SHOP_H : MOBILE_HEADER_H
+    document.documentElement.style.setProperty('--mobile-header-h', `${h}px`)
+  }, [isShopPage])
 
   return (
     <>
@@ -195,9 +199,6 @@ export function HeaderClient({ header }: Props) {
           </div>
         )}
       </div>
-
-      {/* Mobile spacer — static height */}
-      <div className="lg:hidden" style={{ height: mobileSpacer }} />
 
       {/* ═══════ MOBILE SEARCH OVERLAY ═══════ */}
       <AnimatePresence>

@@ -147,9 +147,9 @@ export default async function ShopPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-8">
-      {/* Page title + search */}
+      {/* Page title (desktop only) + search */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="font-[family-name:var(--font-playfair)] text-3xl font-medium tracking-tight text-[#2d2d2d] lg:text-4xl">
+        <h1 className="hidden md:block font-[family-name:var(--font-playfair)] text-3xl font-medium tracking-tight text-[#2d2d2d] lg:text-4xl">
           Каталог
         </h1>
         <Suspense fallback={null}>
