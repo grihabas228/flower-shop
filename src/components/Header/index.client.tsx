@@ -106,12 +106,6 @@ export function HeaderClient({ header }: Props) {
     setSearchOpen(false)
   }, [pathname])
 
-  // Set CSS variable for MobileScrollContainer padding-top
-  useEffect(() => {
-    const h = isShopPage ? MOBILE_HEADER_SHOP_H : MOBILE_HEADER_H
-    document.documentElement.style.setProperty('--mobile-header-h', `${h}px`)
-  }, [isShopPage])
-
   return (
     <>
       {/* ═══════════════════════════════════════════════════════════

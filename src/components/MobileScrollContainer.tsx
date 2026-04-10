@@ -1,31 +1,32 @@
 'use client'
 
+import React from 'react'
+import { usePathname } from 'next/navigation'
+
+export const MOBILE_SCROLL_ID = 'mobile-scroll'
+
 /**
  * Mobile scroll container — moves scroll from body to an inner div
  * so the browser's address bar does NOT hide/show on scroll.
  *
- * On desktop (≥ md) this renders a plain fragment (body scrolls normally).
- * On mobile (< md) it renders a div that occupies the remaining viewport
- * between the fixed header (56px) and fixed bottom nav (~72px).
- *
- * The scroll container gets id="mobile-scroll" so the header can attach
- * its hide-on-scroll listener to it instead of window.
+ * On desktop (≥ md): renders display:contents — body scrolls normally.
+ * On mobile (< md): renders a scrollable div with padding-top to push
+ * content below the fixed header:
+ *   - 80px on most pages (32px address bar + 48px logo row)
+ *   - 120px on /shop (+ 40px category bar)
  */
-
-import React from 'react'
-
-export const MOBILE_SCROLL_ID = 'mobile-scroll'
-
 export function MobileScrollContainer({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  const isShop = pathname === '/shop'
+
   return (
-    <>
-      {/* Mobile: scrollable inner div */}
-      <div
-        id={MOBILE_SCROLL_ID}
-        className="md:contents mobile-scroll-container"
-      >
-        {children}
-      </div>
-    </>
+    <div
+      id={MOBILE_SCROLL_ID}
+      className="md:contents mobile-scroll-container"
+      style={{ paddingTop: undefined }} // CSS handles it; inline override for /shop below
+      data-shop={isShop ? '' : undefined}
+    >
+      {children}
+    </div>
   )
 }
