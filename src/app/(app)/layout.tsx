@@ -46,7 +46,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
           {/* Mobile: flex column layout — header/scroll/nav are siblings, no fixed positioning.
               Desktop (md+): wrapper becomes display:contents — transparent, layout unchanged. */}
-          <div className="flex flex-col h-dvh md:contents">
+          <div className="flex flex-col h-[100dvh] md:contents">
             <Header />
             <MobileScrollContainer>
               <main className="pb-4 md:pb-0">{children}</main>

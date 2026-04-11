@@ -219,11 +219,13 @@
 /* ═══ Mobile scroll containment ═══
    Prevent the browser from hiding/showing its address bar by
    locking body overflow — scrolling happens in the flex-1 container.
-   No padding-top needed: header is a flex sibling, not fixed overlay. */
+   No padding-top needed: header is a flex sibling, not fixed overlay.
+   min-height:0 overrides Tailwind's min-h-[100vh] so height:100dvh wins. */
 @media (max-width: 767.98px) {
   html, body {
     overflow: hidden !important;
     height: 100dvh !important;
+    min-height: 0 !important;
   }
 }
 
