@@ -288,8 +288,8 @@ export function AddressBottomSheet() {
               />
             </div>
 
-            {/* Map — flex-1 takes all remaining space */}
-            <div className="flex-1 min-h-[120px] mt-3 rounded-2xl overflow-hidden border border-[#e8e4de]">
+            {/* Map — fixed height, identical in both states */}
+            <div className="shrink-0 h-[220px] mt-3 rounded-2xl overflow-hidden border border-[#e8e4de]">
               <YandexMap
                 center={mapCenter}
                 zoom={mapZoom}
@@ -299,8 +299,8 @@ export function AddressBottomSheet() {
               />
             </div>
 
-            {/* Delivery info bar — FIXED HEIGHT, always rendered */}
-            <div className="shrink-0 mt-3" style={{ minHeight: 52 }}>
+            {/* Delivery info bar — FIXED HEIGHT, always rendered, identical in all states */}
+            <div className="shrink-0 mt-3">
               <DeliveryInfoSlot
                 loading={loading}
                 zoneResult={zoneResult}
@@ -361,10 +361,13 @@ function DeliveryInfoSlot({
   addressUnavailable: boolean
   addressSelected: boolean
 }) {
+  // All variants use the same fixed min-h-[56px] to prevent layout shift
+  const slotClass = 'min-h-[56px] rounded-xl px-4 py-3'
+
   // Unavailable
   if (addressUnavailable) {
     return (
-      <div className="flex items-center gap-2.5 rounded-xl bg-red-50 px-4 py-3 transition-opacity duration-150">
+      <div className={`${slotClass} flex items-center gap-2.5 bg-red-50 transition-opacity duration-150`}>
         <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
         <p className="font-sans text-[13px] text-red-600">
           Доставка в этот район пока недоступна
@@ -376,7 +379,7 @@ function DeliveryInfoSlot({
   // Loading skeleton
   if (loading) {
     return (
-      <div className="flex items-center gap-2.5 rounded-xl bg-gradient-to-br from-[#e8b4b8]/10 to-[#e8b4b8]/5 px-4 py-3 animate-pulse">
+      <div className={`${slotClass} flex items-center gap-2.5 bg-gradient-to-br from-[#e8b4b8]/10 to-[#e8b4b8]/5 animate-pulse`}>
         <Loader2 className="h-4 w-4 text-[#e8b4b8] shrink-0 animate-spin" />
         <div className="flex-1 space-y-1.5">
           <div className="h-3 w-32 rounded bg-[#e8e4de]" />
@@ -389,7 +392,7 @@ function DeliveryInfoSlot({
   // Result
   if (zoneResult) {
     return (
-      <div className="rounded-xl bg-gradient-to-br from-[#e8b4b8]/10 to-[#e8b4b8]/5 px-4 py-3 transition-opacity duration-150">
+      <div className={`${slotClass} bg-gradient-to-br from-[#e8b4b8]/10 to-[#e8b4b8]/5 transition-opacity duration-150`}>
         <div className="flex items-center gap-2">
           <Truck className="h-4 w-4 text-[#e8b4b8] shrink-0" />
           <p className="font-sans text-[13px] font-medium text-[#2d2d2d]">
@@ -411,9 +414,9 @@ function DeliveryInfoSlot({
     )
   }
 
-  // Empty — hint (same visual height as result)
+  // Empty — hint (identical min-h as result)
   return (
-    <div className="flex items-center gap-2.5 rounded-xl bg-[#f0ebe3]/50 px-4 py-3">
+    <div className={`${slotClass} flex items-center gap-2.5 bg-[#f0ebe3]/50`}>
       <Truck className="h-4 w-4 text-[#c9c4be] shrink-0" />
       <p className="font-sans text-[14px] text-[#999]">
         {addressSelected ? 'Определяем зону доставки…' : 'Укажите адрес для расчёта доставки'}
