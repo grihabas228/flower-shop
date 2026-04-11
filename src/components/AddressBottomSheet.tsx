@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { X, Truck, AlertCircle, Check } from 'lucide-react'
+import { X, Truck, AlertCircle, Check, Loader2 } from 'lucide-react'
 import { Drawer } from 'vaul'
 import { AddressInput, type DaDataSuggestion } from '@/components/AddressInput'
 import { YandexMap } from '@/components/YandexMap'
@@ -10,6 +10,8 @@ import { MOBILE_SCROLL_ID } from '@/components/MobileScrollContainer'
 
 const LAST_ADDRESS_KEY = 'fleur_last_address'
 const SHOP_COORDS: [number, number] = [55.751574, 37.573856]
+const DEFAULT_ZOOM = 10
+const SELECTED_ZOOM = 15
 
 function formatRub(n: number): string {
   return `${n.toLocaleString('ru-RU')} ₽`
@@ -17,10 +19,10 @@ function formatRub(n: number): string {
 
 /**
  * Bottom sheet for entering / changing the delivery address on mobile.
- * Contains AddressInput (DaData) + YandexMap + delivery zone result.
- * Listens for 'fleur:open-address-sheet' custom event.
+ * Fixed height (~75dvh) — no layout shifts between states.
  *
- * Uses vaul Drawer to avoid iOS Safari scroll-jump bugs.
+ * States: empty → loading → result / unavailable
+ * All slots (input, map, info bar, buttons) are always rendered with fixed sizes.
  */
 export function AddressBottomSheet() {
   const { zone, setZone, markUnavailable, clear } = useDelivery()
@@ -30,10 +32,11 @@ export function AddressBottomSheet() {
   const [addressValue, setAddressValue] = useState('')
   const [addressSelected, setAddressSelected] = useState(false)
   const [addressUnavailable, setAddressUnavailable] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   const [mapCenter, setMapCenter] = useState<[number, number]>(SHOP_COORDS)
   const [mapMarker, setMapMarker] = useState<[number, number]>(SHOP_COORDS)
-  const [mapZoom, setMapZoom] = useState(12)
+  const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM)
 
   const [zoneResult, setZoneResult] = useState<{
     estimatedTime: string | null
@@ -42,16 +45,11 @@ export function AddressBottomSheet() {
     freeFrom: number | null
   } | null>(null)
 
-  // Save scroll position whenever drawer opens + debug logging
+  // Save scroll position whenever drawer opens
   useEffect(() => {
-    const el = document.getElementById(MOBILE_SCROLL_ID)
     if (open) {
+      const el = document.getElementById(MOBILE_SCROLL_ID)
       if (el) savedScrollTop.current = el.scrollTop
-      console.log('[SHEET] opening, scrollTop:', el?.scrollTop)
-      console.log('[SHEET] body styles:', document.body.style.cssText)
-      console.log('[SHEET] html styles:', document.documentElement.style.cssText)
-      console.log('[SHEET] container offsetTop:', el?.offsetTop)
-      console.log('[SHEET] container paddingTop:', el ? getComputedStyle(el).paddingTop : 'n/a')
     }
   }, [open])
 
@@ -68,13 +66,13 @@ export function AddressBottomSheet() {
     if (zone) {
       setAddressValue(zone.address)
       setAddressSelected(true)
+      setLoading(false)
       setZoneResult({
         estimatedTime: zone.estimatedTime,
         price3h: zone.price3h,
         isFree: zone.freeFrom != null && zone.price3h === 0,
         freeFrom: zone.freeFrom,
       })
-      // Try to restore map position from localStorage
       try {
         const raw = localStorage.getItem(LAST_ADDRESS_KEY)
         if (raw) {
@@ -85,25 +83,34 @@ export function AddressBottomSheet() {
             if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
               setMapCenter([lat, lon])
               setMapMarker([lat, lon])
-              setMapZoom(15)
+              setMapZoom(SELECTED_ZOOM)
             }
           }
         }
       } catch { /* ignore */ }
     } else {
-      setAddressValue('')
-      setAddressSelected(false)
-      setZoneResult(null)
-      setMapCenter(SHOP_COORDS)
-      setMapMarker(SHOP_COORDS)
-      setMapZoom(12)
+      resetToEmpty()
     }
   }, [open, zone])
+
+  /** Reset all fields to empty state — NO layout shift */
+  const resetToEmpty = useCallback(() => {
+    setAddressValue('')
+    setAddressSelected(false)
+    setAddressUnavailable(false)
+    setLoading(false)
+    setZoneResult(null)
+    setMapCenter(SHOP_COORDS)
+    setMapMarker(SHOP_COORDS)
+    setMapZoom(DEFAULT_ZOOM)
+  }, [])
 
   const handleAddressSelect = useCallback(async (suggestion: DaDataSuggestion) => {
     const { data } = suggestion
     setAddressSelected(true)
     setAddressUnavailable(false)
+    setLoading(true)
+    setZoneResult(null)
 
     // Update map immediately from suggestion coordinates
     if (data.geo_lat && data.geo_lon) {
@@ -111,7 +118,7 @@ export function AddressBottomSheet() {
       const lon = parseFloat(data.geo_lon)
       setMapCenter([lat, lon])
       setMapMarker([lat, lon])
-      setMapZoom(15)
+      setMapZoom(SELECTED_ZOOM)
     }
 
     try {
@@ -122,9 +129,12 @@ export function AddressBottomSheet() {
         body: JSON.stringify({ address: suggestion.value }),
       })
       const cleanData = await cleanRes.json()
-      if (cleanData.error) return
+      if (cleanData.error) {
+        setLoading(false)
+        return
+      }
 
-      // Step 2: Determine zone
+      // Step 2: Determine zone (sequential — depends on clean result)
       const zoneRes = await fetch('/api/delivery/zone-by-address', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -139,6 +149,7 @@ export function AddressBottomSheet() {
       if (info.unavailable) {
         setAddressUnavailable(true)
         setZoneResult(null)
+        setLoading(false)
         markUnavailable(suggestion.value)
         return
       }
@@ -152,7 +163,6 @@ export function AddressBottomSheet() {
           freeFrom: info.zone.freeFrom ?? null,
         })
 
-        // Update DeliveryProvider
         const snapshot: DeliveryZoneSnapshot = {
           id: info.zone.id,
           zoneType: info.zone.zoneType,
@@ -166,7 +176,6 @@ export function AddressBottomSheet() {
         }
         setZone(snapshot)
 
-        // Persist to localStorage
         try {
           localStorage.setItem(
             LAST_ADDRESS_KEY,
@@ -183,18 +192,18 @@ export function AddressBottomSheet() {
       }
     } catch {
       // network error — keep current state
+    } finally {
+      setLoading(false)
     }
   }, [setZone, markUnavailable])
 
-  /** Restore scroll position after drawer closes to prevent iOS Safari jump */
+  /** Restore scroll position after drawer closes */
   const restoreScroll = useCallback(() => {
     const el = document.getElementById(MOBILE_SCROLL_ID)
     if (!el) return
     const target = savedScrollTop.current
-    console.log('[SHEET] closing, scrollTop before:', el.scrollTop, 'target:', target)
     const restore = () => {
       el.scrollTop = target
-      // Also clean up any leftover inline styles vaul may set
       document.body.style.removeProperty('position')
       document.body.style.removeProperty('top')
       document.body.style.removeProperty('left')
@@ -203,19 +212,11 @@ export function AddressBottomSheet() {
       document.body.style.removeProperty('pointer-events')
     }
     restore()
-    // Multiple retries to catch async layout recalculations on iOS Safari
     requestAnimationFrame(restore)
     setTimeout(restore, 0)
     setTimeout(restore, 50)
     setTimeout(restore, 150)
-    setTimeout(() => {
-      restore()
-      console.log('[SHEET] closed, scrollTop after:', el.scrollTop)
-      console.log('[SHEET] body styles:', document.body.style.cssText)
-      console.log('[SHEET] html styles:', document.documentElement.style.cssText)
-      console.log('[SHEET] container offsetTop:', el.offsetTop)
-      console.log('[SHEET] container paddingTop:', getComputedStyle(el).paddingTop)
-    }, 300)
+    setTimeout(restore, 300)
   }, [])
 
   const handleOpenChange = useCallback((isOpen: boolean) => {
@@ -224,20 +225,16 @@ export function AddressBottomSheet() {
   }, [restoreScroll])
 
   const handleClose = useCallback(() => handleOpenChange(false), [handleOpenChange])
-
   const handleConfirm = handleClose
 
   const handleClear = useCallback(() => {
-    setAddressValue('')
-    setAddressSelected(false)
-    setAddressUnavailable(false)
-    setZoneResult(null)
-    setMapCenter(SHOP_COORDS)
-    setMapMarker(SHOP_COORDS)
-    setMapZoom(12)
+    resetToEmpty()
     clear()
     try { localStorage.removeItem(LAST_ADDRESS_KEY) } catch { /* ignore */ }
-  }, [clear])
+  }, [clear, resetToEmpty])
+
+  // Derived state
+  const canConfirm = addressSelected && !addressUnavailable && !loading
 
   return (
     <Drawer.Root
@@ -251,113 +248,176 @@ export function AddressBottomSheet() {
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 z-[80] bg-[#2d2d2d]/40 lg:hidden" />
         <Drawer.Content
-          className="fixed bottom-0 left-0 right-0 z-[80] max-h-[85dvh] rounded-t-3xl bg-[#faf5f0] outline-none lg:hidden"
+          className="fixed bottom-0 left-0 right-0 z-[80] rounded-t-3xl bg-[#faf5f0] outline-none lg:hidden"
+          style={{ height: '75dvh', minHeight: '75dvh' }}
         >
           {/* Drag handle */}
           <Drawer.Handle className="mx-auto mt-3 mb-1 h-1 w-10 rounded-full bg-[#e8e4de]" />
 
-          <div className="max-h-[calc(85dvh-24px)] overflow-y-auto">
-            {/* Header */}
-            <div className="sticky top-0 z-10 bg-[#faf5f0] pb-2 px-5">
-              <div className="flex items-center justify-between">
-                <Drawer.Title className="font-serif text-xl text-[#2d2d2d]">
-                  Адрес доставки
-                </Drawer.Title>
-                <button
-                  onClick={handleClose}
-                  className="p-1 text-[#8a8a8a] hover:text-[#2d2d2d]"
-                  aria-label="Закрыть"
-                >
-                  <X className="h-5 w-5" strokeWidth={1.5} />
-                </button>
-              </div>
+          {/* Fixed-height inner layout — no scroll needed, everything fits */}
+          <div className="flex flex-col h-[calc(75dvh-24px)] px-5">
+            {/* Header — fixed 40px */}
+            <div className="flex items-center justify-between shrink-0 pb-3">
+              <Drawer.Title className="font-serif text-xl text-[#2d2d2d]">
+                Адрес доставки
+              </Drawer.Title>
+              <button
+                onClick={handleClose}
+                className="p-1 text-[#8a8a8a] hover:text-[#2d2d2d]"
+                aria-label="Закрыть"
+              >
+                <X className="h-5 w-5" strokeWidth={1.5} />
+              </button>
             </div>
 
-            <div className="space-y-4 px-5 pb-6">
-              {/* AddressInput — wrapper forces 16px font to prevent iOS zoom */}
-              <div className="ios-no-zoom">
-                <AddressInput
-                  value={addressValue}
-                  onChange={(val) => {
-                    setAddressValue(val)
-                    if (addressSelected) {
-                      setAddressSelected(false)
-                      setZoneResult(null)
-                      setAddressUnavailable(false)
-                    }
-                  }}
-                  onSelect={handleAddressSelect}
-                  placeholder="Укажите улицу и дом"
-                />
-              </div>
+            {/* Address input — fixed slot */}
+            <div className="shrink-0 ios-no-zoom">
+              <AddressInput
+                value={addressValue}
+                onChange={(val) => {
+                  setAddressValue(val)
+                  if (addressSelected) {
+                    setAddressSelected(false)
+                    setZoneResult(null)
+                    setAddressUnavailable(false)
+                    setLoading(false)
+                  }
+                }}
+                onSelect={handleAddressSelect}
+                placeholder="Укажите улицу и дом"
+              />
+            </div>
 
-              {/* Map */}
-              <div className="h-[200px] rounded-2xl overflow-hidden border border-[#e8e4de]">
-                <YandexMap
-                  center={mapCenter}
-                  zoom={mapZoom}
-                  markerCoords={mapMarker}
-                  markerTitle={addressValue || 'FLEUR'}
-                  markerBody=""
-                />
-              </div>
+            {/* Map — flex-1 takes all remaining space */}
+            <div className="flex-1 min-h-[120px] mt-3 rounded-2xl overflow-hidden border border-[#e8e4de]">
+              <YandexMap
+                center={mapCenter}
+                zoom={mapZoom}
+                markerCoords={mapMarker}
+                markerTitle={addressValue || 'FLEUR'}
+                markerBody=""
+              />
+            </div>
 
-              {/* Zone result */}
-              {addressUnavailable && (
-                <div className="flex items-center gap-2.5 rounded-xl bg-red-50 px-4 py-3">
-                  <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
-                  <p className="font-sans text-[13px] text-red-600">
-                    Доставка в этот район пока недоступна
-                  </p>
-                </div>
-              )}
+            {/* Delivery info bar — FIXED HEIGHT, always rendered */}
+            <div className="shrink-0 mt-3" style={{ minHeight: 52 }}>
+              <DeliveryInfoSlot
+                loading={loading}
+                zoneResult={zoneResult}
+                addressUnavailable={addressUnavailable}
+                addressSelected={addressSelected}
+              />
+            </div>
 
-              {zoneResult && !addressUnavailable && (
-                <div className="rounded-xl bg-gradient-to-br from-[#e8b4b8]/10 to-[#e8b4b8]/5 px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <Truck className="h-4 w-4 text-[#e8b4b8] shrink-0" />
-                    <p className="font-sans text-[13px] font-medium text-[#2d2d2d]">
-                      Доставка: {zoneResult.estimatedTime}
-                      {' · '}
-                      {zoneResult.isFree ? (
-                        <span className="text-[#5a7a45]">Бесплатно</span>
-                      ) : (
-                        formatRub(zoneResult.price3h)
-                      )}
-                    </p>
-                  </div>
-                  {zoneResult.freeFrom && !zoneResult.isFree && (
-                    <p className="font-sans text-[11px] text-[#8a8a8a] mt-1 ml-6">
-                      Бесплатно от {zoneResult.freeFrom.toLocaleString('ru-RU')} ₽
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex gap-3 pt-2">
-                {addressSelected && !addressUnavailable && (
-                  <button
-                    onClick={handleConfirm}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#2d2d2d] py-3.5 font-sans text-[14px] font-medium text-[#faf5f0] transition-colors hover:bg-[#2d2d2d]/90"
-                  >
-                    <Check className="h-4 w-4" strokeWidth={2} />
-                    Подтвердить
-                  </button>
-                )}
-                {addressSelected && (
-                  <button
-                    onClick={handleClear}
-                    className="shrink-0 rounded-full border border-[#e8e4de] px-5 py-3.5 font-sans text-[13px] text-[#8a8a8a] transition-colors hover:border-[#2d2d2d] hover:text-[#2d2d2d]"
-                  >
-                    Сбросить
-                  </button>
-                )}
-              </div>
+            {/* Action buttons — ALWAYS rendered, fixed height */}
+            <div className="shrink-0 flex gap-3 mt-3 pb-4">
+              <button
+                onClick={handleConfirm}
+                disabled={!canConfirm}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-full py-3.5 font-sans text-[14px] font-medium transition-all duration-150 ${
+                  canConfirm
+                    ? 'bg-[#2d2d2d] text-[#faf5f0] hover:bg-[#2d2d2d]/90'
+                    : 'bg-[#e8e4de] text-[#b0a99e] cursor-not-allowed'
+                }`}
+              >
+                <Check className="h-4 w-4" strokeWidth={2} />
+                Подтвердить
+              </button>
+              <button
+                onClick={handleClear}
+                className={`shrink-0 rounded-full border border-[#e8e4de] px-5 py-3.5 font-sans text-[13px] transition-all duration-150 ${
+                  addressSelected
+                    ? 'text-[#8a8a8a] hover:border-[#2d2d2d] hover:text-[#2d2d2d]'
+                    : 'invisible'
+                }`}
+              >
+                Сбросить
+              </button>
             </div>
           </div>
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>
+  )
+}
+
+/**
+ * Fixed-height slot for delivery info. Shows one of:
+ * - Hint text (no address)
+ * - Skeleton loader (loading)
+ * - Delivery result (price + time)
+ * - Unavailable warning
+ *
+ * All variants have identical outer dimensions — zero layout shift.
+ */
+function DeliveryInfoSlot({
+  loading,
+  zoneResult,
+  addressUnavailable,
+  addressSelected,
+}: {
+  loading: boolean
+  zoneResult: { estimatedTime: string | null; price3h: number; isFree: boolean; freeFrom: number | null } | null
+  addressUnavailable: boolean
+  addressSelected: boolean
+}) {
+  // Unavailable
+  if (addressUnavailable) {
+    return (
+      <div className="flex items-center gap-2.5 rounded-xl bg-red-50 px-4 py-3 transition-opacity duration-150">
+        <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
+        <p className="font-sans text-[13px] text-red-600">
+          Доставка в этот район пока недоступна
+        </p>
+      </div>
+    )
+  }
+
+  // Loading skeleton
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2.5 rounded-xl bg-gradient-to-br from-[#e8b4b8]/10 to-[#e8b4b8]/5 px-4 py-3 animate-pulse">
+        <Loader2 className="h-4 w-4 text-[#e8b4b8] shrink-0 animate-spin" />
+        <div className="flex-1 space-y-1.5">
+          <div className="h-3 w-32 rounded bg-[#e8e4de]" />
+          <div className="h-2.5 w-20 rounded bg-[#e8e4de]/60" />
+        </div>
+      </div>
+    )
+  }
+
+  // Result
+  if (zoneResult) {
+    return (
+      <div className="rounded-xl bg-gradient-to-br from-[#e8b4b8]/10 to-[#e8b4b8]/5 px-4 py-3 transition-opacity duration-150">
+        <div className="flex items-center gap-2">
+          <Truck className="h-4 w-4 text-[#e8b4b8] shrink-0" />
+          <p className="font-sans text-[13px] font-medium text-[#2d2d2d]">
+            Доставка: {zoneResult.estimatedTime}
+            {' · '}
+            {zoneResult.isFree ? (
+              <span className="text-[#5a7a45]">Бесплатно</span>
+            ) : (
+              formatRub(zoneResult.price3h)
+            )}
+          </p>
+        </div>
+        {zoneResult.freeFrom && !zoneResult.isFree && (
+          <p className="font-sans text-[11px] text-[#8a8a8a] mt-1 ml-6">
+            Бесплатно от {zoneResult.freeFrom.toLocaleString('ru-RU')} ₽
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  // Empty — hint (same visual height as result)
+  return (
+    <div className="flex items-center gap-2.5 rounded-xl bg-[#f0ebe3]/50 px-4 py-3">
+      <Truck className="h-4 w-4 text-[#c9c4be] shrink-0" />
+      <p className="font-sans text-[14px] text-[#999]">
+        {addressSelected ? 'Определяем зону доставки…' : 'Укажите адрес для расчёта доставки'}
+      </p>
+    </div>
   )
 }
