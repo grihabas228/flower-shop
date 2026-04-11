@@ -2,9 +2,8 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { X, Truck, AlertCircle, Check } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { Drawer } from 'vaul'
 import { AddressInput, type DaDataSuggestion } from '@/components/AddressInput'
-import { RemoveScroll } from 'react-remove-scroll'
 import { YandexMap } from '@/components/YandexMap'
 import { useDelivery, type DeliveryZoneSnapshot } from '@/providers/DeliveryProvider'
 
@@ -19,6 +18,8 @@ function formatRub(n: number): string {
  * Bottom sheet for entering / changing the delivery address on mobile.
  * Contains AddressInput (DaData) + YandexMap + delivery zone result.
  * Listens for 'fleur:open-address-sheet' custom event.
+ *
+ * Uses vaul Drawer to avoid iOS Safari scroll-jump bugs.
  */
 export function AddressBottomSheet() {
   const { zone, setZone, markUnavailable, clear } = useDelivery()
@@ -187,33 +188,29 @@ export function AddressBottomSheet() {
   }, [clear])
 
   return (
-    <AnimatePresence>
-      {open && (
-        <RemoveScroll>
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="fixed inset-0 z-[80] bg-[#2d2d2d]/40 lg:hidden"
-              onClick={handleClose}
-            />
+    <Drawer.Root
+      open={open}
+      onOpenChange={(o) => { if (!o) handleClose() }}
+      noBodyStyles
+      repositionInputs={false}
+      shouldScaleBackground={false}
+      disablePreventScroll
+    >
+      <Drawer.Portal>
+        <Drawer.Overlay className="fixed inset-0 z-[80] bg-[#2d2d2d]/40 lg:hidden" />
+        <Drawer.Content
+          className="fixed bottom-0 left-0 right-0 z-[80] max-h-[85dvh] rounded-t-3xl bg-[#faf5f0] outline-none lg:hidden"
+        >
+          {/* Drag handle */}
+          <Drawer.Handle className="mx-auto mt-3 mb-1 h-1 w-10 rounded-full bg-[#e8e4de]" />
 
-            {/* Sheet */}
-            <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="fixed bottom-0 left-0 right-0 z-[80] max-h-[80dvh] overflow-y-auto rounded-t-3xl bg-[#faf5f0] lg:hidden"
-            >
-            {/* Handle + close */}
-            <div className="sticky top-0 z-10 bg-[#faf5f0] pt-3 pb-2 px-5">
-              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#e8e4de]" />
+          <div className="max-h-[calc(85dvh-24px)] overflow-y-auto">
+            {/* Header */}
+            <div className="sticky top-0 z-10 bg-[#faf5f0] pb-2 px-5">
               <div className="flex items-center justify-between">
-                <h2 className="font-serif text-xl text-[#2d2d2d]">Адрес доставки</h2>
+                <Drawer.Title className="font-serif text-xl text-[#2d2d2d]">
+                  Адрес доставки
+                </Drawer.Title>
                 <button
                   onClick={handleClose}
                   className="p-1 text-[#8a8a8a] hover:text-[#2d2d2d]"
@@ -306,10 +303,9 @@ export function AddressBottomSheet() {
                 )}
               </div>
             </div>
-            </motion.div>
-          </>
-        </RemoveScroll>
-      )}
-    </AnimatePresence>
+          </div>
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
   )
 }

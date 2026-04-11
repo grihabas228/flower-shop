@@ -5,9 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createUrl } from '@/utilities/createUrl'
 import { cn } from '@/utilities/cn'
 import { X, ChevronDown } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { Drawer } from 'vaul'
 import { priceRanges, occasions, colors, recipients } from '@/lib/constants'
-import { RemoveScroll } from 'react-remove-scroll'
 
 type Props = {
   totalProducts: number
@@ -75,33 +74,30 @@ export function MobileFiltersSheet({ totalProducts }: Props) {
   }
 
   return (
-    <AnimatePresence>
-      {open && (
-        <RemoveScroll>
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="fixed inset-0 z-[70] bg-[#2d2d2d]/40 md:hidden"
-              onClick={() => setOpen(false)}
-            />
+    <Drawer.Root
+      open={open}
+      onOpenChange={(o) => setOpen(o)}
+      noBodyStyles
+      repositionInputs={false}
+      shouldScaleBackground={false}
+      disablePreventScroll
+    >
+      <Drawer.Portal>
+        <Drawer.Overlay className="fixed inset-0 z-[70] bg-[#2d2d2d]/40 md:hidden" />
+        <Drawer.Content
+          className="fixed bottom-0 left-0 right-0 z-[70] rounded-t-3xl bg-[#faf5f0] outline-none md:hidden"
+          style={{ maxHeight: 'calc(100dvh - 120px)' }}
+        >
+          {/* Drag handle */}
+          <Drawer.Handle className="mx-auto mt-3 mb-1 h-1 w-10 rounded-full bg-[#e8e4de]" />
 
-            {/* Sheet */}
-            <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="fixed bottom-0 left-0 right-0 z-[70] top-[120px] overflow-y-auto rounded-t-3xl bg-[#faf5f0] md:hidden safe-bottom-nav"
-            >
-            {/* Handle */}
-            <div className="sticky top-0 z-10 bg-[#faf5f0] pt-3 pb-2 px-5">
-              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#e8e4de]" />
+          <div className="overflow-y-auto" style={{ maxHeight: 'calc(100dvh - 120px - 24px - 72px)' }}>
+            {/* Header */}
+            <div className="sticky top-0 z-10 bg-[#faf5f0] pb-2 px-5">
               <div className="flex items-center justify-between">
-                <h2 className="font-serif text-xl text-[#2d2d2d]">Фильтры</h2>
+                <Drawer.Title className="font-serif text-xl text-[#2d2d2d]">
+                  Фильтры
+                </Drawer.Title>
                 <button
                   onClick={() => setOpen(false)}
                   className="p-1 text-[#8a8a8a] hover:text-[#2d2d2d]"
@@ -112,7 +108,7 @@ export function MobileFiltersSheet({ totalProducts }: Props) {
               </div>
             </div>
 
-            <div className="space-y-5 px-5 pb-32">
+            <div className="space-y-5 px-5 pb-4">
               {/* Occasion */}
               <FilterSection title="Повод">
                 <div className="flex flex-wrap gap-2">
@@ -185,29 +181,28 @@ export function MobileFiltersSheet({ totalProducts }: Props) {
                 </div>
               </FilterSection>
             </div>
+          </div>
 
-            {/* Sticky bottom bar */}
-            <div className="fixed bottom-0 left-0 right-0 z-10 border-t border-[#e8e4de] bg-[#faf5f0] px-5 py-4 md:hidden safe-bottom-nav">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setOpen(false)}
-                  className="flex-1 rounded-full bg-[#2d2d2d] py-3.5 text-center font-sans text-[14px] font-medium text-[#faf5f0] transition-colors hover:bg-[#2d2d2d]/90"
-                >
-                  Показать {getPluralBouquets(totalProducts)}
-                </button>
-                <button
-                  onClick={clearAll}
-                  className="shrink-0 font-sans text-[13px] text-[#8a8a8a] transition-colors hover:text-[#2d2d2d]"
-                >
-                  Сбросить
-                </button>
-              </div>
+          {/* Sticky bottom bar inside drawer */}
+          <div className="border-t border-[#e8e4de] bg-[#faf5f0] px-5 py-4 safe-bottom-nav">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setOpen(false)}
+                className="flex-1 rounded-full bg-[#2d2d2d] py-3.5 text-center font-sans text-[14px] font-medium text-[#faf5f0] transition-colors hover:bg-[#2d2d2d]/90"
+              >
+                Показать {getPluralBouquets(totalProducts)}
+              </button>
+              <button
+                onClick={clearAll}
+                className="shrink-0 font-sans text-[13px] text-[#8a8a8a] transition-colors hover:text-[#2d2d2d]"
+              >
+                Сбросить
+              </button>
             </div>
-            </motion.div>
-          </>
-        </RemoveScroll>
-      )}
-    </AnimatePresence>
+          </div>
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
   )
 }
 

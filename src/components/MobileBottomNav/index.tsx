@@ -19,8 +19,7 @@ import { useAuth } from '@/providers/Auth'
 import { useFavorites } from '@/providers/FavoritesProvider'
 import { AuthModal } from '@/components/AuthModal'
 import { cn } from '@/utilities/cn'
-import { RemoveScroll } from 'react-remove-scroll'
-import { motion, AnimatePresence } from 'framer-motion'
+import { Drawer } from 'vaul'
 import React, { useMemo, useState, useEffect, Suspense } from 'react'
 
 const menuNavLinks = [
@@ -143,10 +142,8 @@ function BottomNavInner() {
         </div>
       </nav>
 
-      {/* Menu drawer */}
-      <AnimatePresence>
-        {menuOpen && <MenuDrawer onClose={() => setMenuOpen(false)} />}
-      </AnimatePresence>
+      {/* Menu drawer — vaul with direction=left */}
+      <MenuDrawer open={menuOpen} onOpenChange={setMenuOpen} />
 
       <AuthModal open={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </>
@@ -163,162 +160,164 @@ export function MobileBottomNav() {
 
 /* ---- Drawer rendered from "Меню" button ---- */
 
-function MenuDrawer({ onClose }: { onClose: () => void }) {
+function MenuDrawer({
+  open,
+  onOpenChange,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const { user } = useAuth()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
   // Close on route change
   useEffect(() => {
-    onClose()
+    onOpenChange(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, searchParams])
 
+  const handleClose = () => onOpenChange(false)
+
   return (
-    <RemoveScroll>
-      <>
-        {/* Backdrop */}
-        <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.25 }}
-        className="fixed inset-0 z-[70] bg-black/20"
-        onClick={onClose}
-      />
-
-      {/* Drawer */}
-      <motion.div
-        initial={{ x: '-100%' }}
-        animate={{ x: 0 }}
-        exit={{ x: '-100%' }}
-        transition={{ duration: 0.3, ease: 'easeInOut' }}
-        className="fixed bottom-0 left-0 top-0 z-[70] w-[300px] overflow-y-auto bg-[#faf5f0]"
-      >
-        {/* Header */}
-        <div className="flex h-16 items-center justify-between border-b border-[#e8e4de] px-6">
-          <span className="font-serif text-[20px] uppercase tracking-[0.2em] text-[#2d2d2d]">
-            Fleur
-          </span>
-          <button
-            onClick={onClose}
-            className="-mr-2 p-2 text-[#2d2d2d] transition-colors hover:text-[#5a5a5a]"
-            aria-label="Закрыть меню"
-          >
-            <X className="h-5 w-5" strokeWidth={1.5} />
-          </button>
-        </div>
-
-        {/* Search */}
-        <div className="border-b border-[#e8e4de] p-6">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Найти букет..."
-              className="h-10 w-full rounded-full border border-[#e8e4de] bg-transparent pl-4 pr-10 font-sans text-sm text-[#2d2d2d] transition-colors placeholder:text-[#9a9a9a] focus:border-[#c9c4be] focus:outline-none"
-            />
-            <Search
-              className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9a9a]"
-              strokeWidth={1.5}
-            />
+    <Drawer.Root
+      open={open}
+      onOpenChange={onOpenChange}
+      direction="left"
+      noBodyStyles
+      repositionInputs={false}
+      shouldScaleBackground={false}
+      disablePreventScroll
+    >
+      <Drawer.Portal>
+        <Drawer.Overlay className="fixed inset-0 z-[70] bg-black/20" />
+        <Drawer.Content
+          className="fixed bottom-0 left-0 top-0 z-[70] w-[300px] overflow-y-auto bg-[#faf5f0] outline-none"
+        >
+          {/* Header */}
+          <div className="flex h-16 items-center justify-between border-b border-[#e8e4de] px-6">
+            <Drawer.Title className="font-serif text-[20px] uppercase tracking-[0.2em] text-[#2d2d2d]">
+              Fleur
+            </Drawer.Title>
+            <button
+              onClick={handleClose}
+              className="-mr-2 p-2 text-[#2d2d2d] transition-colors hover:text-[#5a5a5a]"
+              aria-label="Закрыть меню"
+            >
+              <X className="h-5 w-5" strokeWidth={1.5} />
+            </button>
           </div>
-        </div>
 
-        {/* Nav links */}
-        <nav className="py-4">
-          <ul>
-            {menuNavLinks.map((link) => {
-              const active =
-                link.href !== '/' ? pathname.startsWith(link.href) : pathname === link.href
-
-              return (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    onClick={onClose}
-                    className={cn(
-                      'block px-6 py-3 font-sans text-[14px] uppercase tracking-[0.08em] text-[#5a5a5a] transition-colors hover:bg-[#f0ebe3] hover:text-[#2d2d2d]',
-                      active && 'bg-[#f0ebe3] text-[#2d2d2d]',
-                    )}
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-        </nav>
-
-        {/* Account */}
-        <div className="border-t border-[#e8e4de] py-4">
-          {user ? (
-            <>
-              <Link
-                href="/orders"
-                onClick={onClose}
-                className="flex items-center gap-3 px-6 py-3 font-sans text-[14px] text-[#5a5a5a] transition-colors hover:bg-[#f0ebe3] hover:text-[#2d2d2d]"
-              >
-                <User className="h-4 w-4" strokeWidth={1.5} />
-                <span>Мои заказы</span>
-              </Link>
-              <Link
-                href="/account"
-                onClick={onClose}
-                className="flex items-center gap-3 px-6 py-3 font-sans text-[14px] text-[#5a5a5a] transition-colors hover:bg-[#f0ebe3] hover:text-[#2d2d2d]"
-              >
-                <Heart className="h-4 w-4" strokeWidth={1.5} />
-                <span>Аккаунт</span>
-              </Link>
-              <Link
-                href="/logout"
-                onClick={onClose}
-                className="flex items-center gap-3 px-6 py-3 font-sans text-[14px] text-[#5a5a5a] transition-colors hover:bg-[#f0ebe3] hover:text-[#2d2d2d]"
-              >
-                <span className="ml-7">Выйти</span>
-              </Link>
-            </>
-          ) : (
-            <>
-              <Link
-                href="/login"
-                onClick={onClose}
-                className="flex items-center gap-3 px-6 py-3 font-sans text-[14px] text-[#5a5a5a] transition-colors hover:bg-[#f0ebe3] hover:text-[#2d2d2d]"
-              >
-                <User className="h-4 w-4" strokeWidth={1.5} />
-                <span>Войти</span>
-              </Link>
-              <Link
-                href="/create-account"
-                onClick={onClose}
-                className="flex items-center gap-3 px-6 py-3 font-sans text-[14px] text-[#5a5a5a] transition-colors hover:bg-[#f0ebe3] hover:text-[#2d2d2d]"
-              >
-                <Heart className="h-4 w-4" strokeWidth={1.5} />
-                <span>Регистрация</span>
-              </Link>
-            </>
-          )}
-        </div>
-
-        {/* Contacts */}
-        <div className="space-y-3 border-t border-[#e8e4de] p-6 text-[12px] text-[#6b6b6b]">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-3.5 w-3.5" strokeWidth={1.5} />
-            <span>Москва</span>
+          {/* Search */}
+          <div className="border-b border-[#e8e4de] p-6">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Найти букет..."
+                className="h-10 w-full rounded-full border border-[#e8e4de] bg-transparent pl-4 pr-10 font-sans text-sm text-[#2d2d2d] transition-colors placeholder:text-[#9a9a9a] focus:border-[#c9c4be] focus:outline-none"
+              />
+              <Search
+                className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9a9a]"
+                strokeWidth={1.5}
+              />
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Clock className="h-3.5 w-3.5" strokeWidth={1.5} />
-            <span>Доставка с 8:00 до 22:00</span>
+
+          {/* Nav links */}
+          <nav className="py-4">
+            <ul>
+              {menuNavLinks.map((link) => {
+                const active =
+                  link.href !== '/' ? pathname.startsWith(link.href) : pathname === link.href
+
+                return (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      onClick={handleClose}
+                      className={cn(
+                        'block px-6 py-3 font-sans text-[14px] uppercase tracking-[0.08em] text-[#5a5a5a] transition-colors hover:bg-[#f0ebe3] hover:text-[#2d2d2d]',
+                        active && 'bg-[#f0ebe3] text-[#2d2d2d]',
+                      )}
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          </nav>
+
+          {/* Account */}
+          <div className="border-t border-[#e8e4de] py-4">
+            {user ? (
+              <>
+                <Link
+                  href="/orders"
+                  onClick={handleClose}
+                  className="flex items-center gap-3 px-6 py-3 font-sans text-[14px] text-[#5a5a5a] transition-colors hover:bg-[#f0ebe3] hover:text-[#2d2d2d]"
+                >
+                  <User className="h-4 w-4" strokeWidth={1.5} />
+                  <span>Мои заказы</span>
+                </Link>
+                <Link
+                  href="/account"
+                  onClick={handleClose}
+                  className="flex items-center gap-3 px-6 py-3 font-sans text-[14px] text-[#5a5a5a] transition-colors hover:bg-[#f0ebe3] hover:text-[#2d2d2d]"
+                >
+                  <Heart className="h-4 w-4" strokeWidth={1.5} />
+                  <span>Аккаунт</span>
+                </Link>
+                <Link
+                  href="/logout"
+                  onClick={handleClose}
+                  className="flex items-center gap-3 px-6 py-3 font-sans text-[14px] text-[#5a5a5a] transition-colors hover:bg-[#f0ebe3] hover:text-[#2d2d2d]"
+                >
+                  <span className="ml-7">Выйти</span>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  onClick={handleClose}
+                  className="flex items-center gap-3 px-6 py-3 font-sans text-[14px] text-[#5a5a5a] transition-colors hover:bg-[#f0ebe3] hover:text-[#2d2d2d]"
+                >
+                  <User className="h-4 w-4" strokeWidth={1.5} />
+                  <span>Войти</span>
+                </Link>
+                <Link
+                  href="/create-account"
+                  onClick={handleClose}
+                  className="flex items-center gap-3 px-6 py-3 font-sans text-[14px] text-[#5a5a5a] transition-colors hover:bg-[#f0ebe3] hover:text-[#2d2d2d]"
+                >
+                  <Heart className="h-4 w-4" strokeWidth={1.5} />
+                  <span>Регистрация</span>
+                </Link>
+              </>
+            )}
           </div>
-          <a
-            href="tel:+74951234567"
-            className="flex items-center gap-2 transition-colors hover:text-[#2d2d2d]"
-          >
-            <Phone className="h-3.5 w-3.5" strokeWidth={1.5} />
-            <span>+7 (495) 123-45-67</span>
-          </a>
-        </div>
-        </motion.div>
-      </>
-    </RemoveScroll>
+
+          {/* Contacts */}
+          <div className="space-y-3 border-t border-[#e8e4de] p-6 text-[12px] text-[#6b6b6b]">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-3.5 w-3.5" strokeWidth={1.5} />
+              <span>Москва</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Clock className="h-3.5 w-3.5" strokeWidth={1.5} />
+              <span>Доставка с 8:00 до 22:00</span>
+            </div>
+            <a
+              href="tel:+74951234567"
+              className="flex items-center gap-2 transition-colors hover:text-[#2d2d2d]"
+            >
+              <Phone className="h-3.5 w-3.5" strokeWidth={1.5} />
+              <span>+7 (495) 123-45-67</span>
+            </a>
+          </div>
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
   )
 }
