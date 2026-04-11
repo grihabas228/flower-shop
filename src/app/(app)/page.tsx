@@ -88,7 +88,14 @@ export default async function HomePage() {
         image: {
           url: (item.image as { url?: string }).url ?? '',
           alt: (item.image as { alt?: string | null }).alt ?? null,
+          width: (item.image as { width?: number | null }).width ?? null,
+          height: (item.image as { height?: number | null }).height ?? null,
         },
+        variantOption: (item as { variantOption?: { id: number } | number | null }).variantOption
+          ? typeof (item as { variantOption?: { id: number } | number }).variantOption === 'object'
+            ? { id: ((item as { variantOption: { id: number } }).variantOption).id }
+            : (item as { variantOption: number }).variantOption
+          : null,
       }))
 
     const variants = (product.variants?.docs ?? [])
@@ -116,6 +123,7 @@ export default async function HomePage() {
       slug: product.slug,
       priceInUSD: product.priceInUSD ?? null,
       enableVariants: product.enableVariants ?? null,
+      variantDisplayType: (product as { variantDisplayType?: string | null }).variantDisplayType ?? null,
       inventory: product.inventory ?? null,
       gallery,
       variants,

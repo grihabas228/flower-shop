@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ProductCard } from './ProductCard'
+import { ProductCardShop } from '@/components/shop/ProductCardShop'
 
 type VariantOption = {
   id: number
@@ -19,6 +19,7 @@ type ProductCardData = {
   slug: string
   priceInUSD?: number | null
   enableVariants?: boolean | null
+  variantDisplayType?: string | null
   inventory?: number | null
   gallery?: Array<{
     image: {
@@ -27,6 +28,7 @@ type ProductCardData = {
       width?: number | null
       height?: number | null
     }
+    variantOption?: { id: number } | number | null
   }> | null
   variants?: ProductVariant[]
   meta?: {
@@ -58,7 +60,7 @@ export function PopularProducts({ products }: Props) {
 
       <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4 lg:gap-6">
         {products.map((product) => (
-          <ProductCard key={product.id} product={product} />
+          <ProductCardShop key={product.id} product={product as Parameters<typeof ProductCardShop>[0]['product']} />
         ))}
       </div>
       </div>

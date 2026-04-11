@@ -265,42 +265,46 @@ export function ProductCardShop({ product, deliveryTime, bonusPoints }: Props) {
         </div>
       </div>
 
-      {/* Content */}
+      {/* Content — fixed zones for equal card heights in a row */}
       <div className="mt-3.5 flex flex-1 flex-col px-0.5">
-        {/* Title */}
-        <h3 className="mb-2 line-clamp-2 font-sans text-[14px] leading-[1.4] text-[#2d2d2d] lg:text-[15px]">
+        {/* Title — fixed zone: 2 lines max */}
+        <h3 className="min-h-[40px] mb-2 line-clamp-2 font-sans text-[14px] leading-[1.4] text-[#2d2d2d] lg:text-[15px]">
           {product.title}
         </h3>
 
-        {/* Compact variant switcher — single row, never wraps */}
-        {hasVariants && compactLabels.length > 1 && (
-          <div className="mb-2.5 flex items-center gap-1 overflow-hidden">
-            {compactLabels.map((label, i) => (
-              <button
-                key={variants[i]!.id}
-                onClick={(e) => handleVariantClick(e, i)}
-                className={cn(
-                  'shrink-0 cursor-pointer rounded-full px-2.5 py-1 font-sans text-[12px] font-medium tabular-nums transition-all duration-200',
-                  i === selectedVariantIndex
-                    ? 'bg-[#2d2d2d] text-[#faf5f0]'
-                    : 'border border-[#e0dbd4] text-[#5a5a5a] hover:border-[#c8c3bb]',
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Variants — fixed zone: always reserves space */}
+        <div className="min-h-[32px] mb-2.5">
+          {hasVariants && compactLabels.length > 1 && (
+            <div className="flex items-center gap-1 overflow-hidden">
+              {compactLabels.map((label, i) => (
+                <button
+                  key={variants[i]!.id}
+                  onClick={(e) => handleVariantClick(e, i)}
+                  className={cn(
+                    'shrink-0 cursor-pointer rounded-full px-2.5 py-1 font-sans text-[12px] font-medium tabular-nums transition-all duration-200',
+                    i === selectedVariantIndex
+                      ? 'bg-[#2d2d2d] text-[#faf5f0]'
+                      : 'border border-[#e0dbd4] text-[#5a5a5a] hover:border-[#c8c3bb]',
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
-        {/* Bonus points */}
-        {computedBonus > 0 && (
-          <div className="mb-2 flex items-center gap-1">
-            <Star className="h-3 w-3 fill-[#e8b4b8] text-[#e8b4b8]" />
-            <span className="font-sans text-[11px] text-[#b0a99e]">+{computedBonus} баллов</span>
-          </div>
-        )}
+        {/* Bonus — fixed zone: always reserves space */}
+        <div className="min-h-[20px] mb-2">
+          {computedBonus > 0 && (
+            <div className="flex items-center gap-1">
+              <Star className="h-3 w-3 fill-[#e8b4b8] text-[#e8b4b8]" />
+              <span className="font-sans text-[11px] text-[#b0a99e]">+{computedBonus} баллов</span>
+            </div>
+          )}
+        </div>
 
-        {/* Price + Cart button */}
+        {/* Price + Cart button — always at bottom */}
         <div className="mt-auto flex items-center justify-between gap-2 pt-1">
           <span className="font-sans text-[17px] font-semibold tracking-tight text-[#2d2d2d] lg:text-[18px]">
             {formatPrice(currentPrice)}&nbsp;&#8381;
