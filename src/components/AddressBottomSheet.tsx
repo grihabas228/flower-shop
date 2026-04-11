@@ -380,15 +380,19 @@ function DeliveryInfoSlot({
     )
   }
 
-  // Loading skeleton — same two-line structure, skeleton bars instead of text
+  // Loading skeleton — identical <p> tags as result, skeleton bars inside
   if (loading) {
     return (
       <div className={shell}>
         <div className="flex items-center gap-2">
           <Loader2 className="h-4 w-4 text-[#e8b4b8] shrink-0 animate-spin" />
-          <div className="h-[18px] w-36 rounded bg-[#e8e4de] animate-pulse" />
+          <p className="font-sans text-[13px] font-medium leading-normal">
+            <span className="inline-block h-3 w-36 rounded bg-[#e8e4de] animate-pulse align-middle" />
+          </p>
         </div>
-        <div className="h-[16px] w-24 rounded bg-[#e8e4de]/60 animate-pulse mt-1 ml-6" />
+        <p className="font-sans text-[11px] mt-1 ml-6 leading-normal">
+          <span className="inline-block h-2.5 w-24 rounded bg-[#e8e4de]/60 animate-pulse align-middle" />
+        </p>
       </div>
     )
   }
