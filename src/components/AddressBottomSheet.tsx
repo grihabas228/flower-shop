@@ -42,11 +42,16 @@ export function AddressBottomSheet() {
     freeFrom: number | null
   } | null>(null)
 
-  // Save scroll position whenever drawer opens
+  // Save scroll position whenever drawer opens + debug logging
   useEffect(() => {
+    const el = document.getElementById(MOBILE_SCROLL_ID)
     if (open) {
-      const el = document.getElementById(MOBILE_SCROLL_ID)
       if (el) savedScrollTop.current = el.scrollTop
+      console.log('[SHEET] opening, scrollTop:', el?.scrollTop)
+      console.log('[SHEET] body styles:', document.body.style.cssText)
+      console.log('[SHEET] html styles:', document.documentElement.style.cssText)
+      console.log('[SHEET] container offsetTop:', el?.offsetTop)
+      console.log('[SHEET] container paddingTop:', el ? getComputedStyle(el).paddingTop : 'n/a')
     }
   }, [open])
 
@@ -186,6 +191,7 @@ export function AddressBottomSheet() {
     const el = document.getElementById(MOBILE_SCROLL_ID)
     if (!el) return
     const target = savedScrollTop.current
+    console.log('[SHEET] closing, scrollTop before:', el.scrollTop, 'target:', target)
     const restore = () => {
       el.scrollTop = target
       // Also clean up any leftover inline styles vaul may set
@@ -202,7 +208,14 @@ export function AddressBottomSheet() {
     setTimeout(restore, 0)
     setTimeout(restore, 50)
     setTimeout(restore, 150)
-    setTimeout(restore, 300)
+    setTimeout(() => {
+      restore()
+      console.log('[SHEET] closed, scrollTop after:', el.scrollTop)
+      console.log('[SHEET] body styles:', document.body.style.cssText)
+      console.log('[SHEET] html styles:', document.documentElement.style.cssText)
+      console.log('[SHEET] container offsetTop:', el.offsetTop)
+      console.log('[SHEET] container paddingTop:', getComputedStyle(el).paddingTop)
+    }, 300)
   }, [])
 
   const handleOpenChange = useCallback((isOpen: boolean) => {

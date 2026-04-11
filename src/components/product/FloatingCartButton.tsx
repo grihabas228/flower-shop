@@ -45,7 +45,7 @@ export function FloatingCartButton({ productId, variantId, price, inStock }: Pro
       {
         root: scrollContainer,
         threshold: 0,
-        rootMargin: '-80px 0px 0px 0px', // show a bit before button fully disappears
+        rootMargin: '0px 0px 0px 0px',
       },
     )
 

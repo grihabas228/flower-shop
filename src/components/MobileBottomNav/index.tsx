@@ -103,7 +103,7 @@ function BottomNavInner() {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 z-[60] border-t border-[#e8e4de] bg-white/95 backdrop-blur-sm md:hidden safe-bottom-nav">
+      <nav className="relative z-[60] shrink-0 border-t border-[#e8e4de] bg-white/95 backdrop-blur-sm md:hidden safe-bottom-nav">
         <div className="mx-auto flex h-16 max-w-lg items-stretch justify-around px-2">
           {navItems.map((item) => {
             const active = isActive(item.href)

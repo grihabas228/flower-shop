@@ -114,7 +114,7 @@ export function HeaderClient({ header }: Props) {
           Row 2: Logo + social icons + search (48px)
           Row 3: Category bar — only on /shop (40px)
           ═══════════════════════════════════════════════════════════ */}
-      <div className="fixed top-0 left-0 right-0 z-50 lg:hidden">
+      <div className="relative z-50 shrink-0 lg:hidden">
         {/* Row 1: Delivery address bar */}
         <DeliveryAddressBar />
 

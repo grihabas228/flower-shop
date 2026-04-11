@@ -313,7 +313,6 @@ export interface Product {
   };
   priceInUSDEnabled?: boolean | null;
   priceInUSD?: number | null;
-  variantDisplayType?: ('size' | 'quantity') | null;
   relatedProducts?: (number | Product)[] | null;
   meta?: {
     title?: string | null;
@@ -323,6 +322,10 @@ export interface Product {
     image?: (number | null) | Media;
     description?: string | null;
   };
+  /**
+   * Как варианты отображаются на карточке в каталоге
+   */
+  variantDisplayType?: ('size' | 'quantity') | null;
   categories?: (number | Category)[] | null;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
@@ -1910,7 +1913,6 @@ export interface ProductsSelect<T extends boolean = true> {
   variants?: T;
   priceInUSDEnabled?: T;
   priceInUSD?: T;
-  variantDisplayType?: T;
   relatedProducts?: T;
   meta?:
     | T
@@ -1919,6 +1921,7 @@ export interface ProductsSelect<T extends boolean = true> {
         image?: T;
         description?: T;
       };
+  variantDisplayType?: T;
   categories?: T;
   generateSlug?: T;
   slug?: T;

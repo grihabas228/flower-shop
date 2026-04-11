@@ -6,6 +6,7 @@ import { Header } from '@/components/Header'
 import { MobileBottomNav } from '@/components/MobileBottomNav'
 import { MobileScrollContainer } from '@/components/MobileScrollContainer'
 import { AddressBottomSheet } from '@/components/AddressBottomSheet'
+import { MobileDebugger } from '@/components/MobileDebugger'
 import { LivePreviewListener } from '@/components/LivePreviewListener'
 import { Providers } from '@/providers'
 import { InitTheme } from '@/providers/Theme/InitTheme'
@@ -43,13 +44,19 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <AdminBar />
           <LivePreviewListener />
 
-          <Header />
-          <MobileScrollContainer>
-            <main className="safe-main-bottom md:pb-0">{children}</main>
-            <Footer />
-          </MobileScrollContainer>
-          <MobileBottomNav />
+          {/* Mobile: flex column layout — header/scroll/nav are siblings, no fixed positioning.
+              Desktop (md+): wrapper becomes display:contents — transparent, layout unchanged. */}
+          <div className="flex flex-col h-dvh md:contents">
+            <Header />
+            <MobileScrollContainer>
+              <main className="pb-4 md:pb-0">{children}</main>
+              <Footer />
+            </MobileScrollContainer>
+            <MobileBottomNav />
+          </div>
+
           <AddressBottomSheet />
+          <MobileDebugger />
         </Providers>
       </body>
     </html>
