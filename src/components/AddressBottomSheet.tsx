@@ -414,12 +414,17 @@ function DeliveryInfoSlot({
     )
   }
 
-  // Empty — hint (identical min-h as result)
+  // Empty — hint: same bg, structure, and two-line layout as result
   return (
-    <div className={`${slotClass} flex items-center gap-2.5 bg-[#f0ebe3]/50`}>
-      <Truck className="h-4 w-4 text-[#c9c4be] shrink-0" />
-      <p className="font-sans text-[14px] text-[#999]">
-        {addressSelected ? 'Определяем зону доставки…' : 'Укажите адрес для расчёта доставки'}
+    <div className={`${slotClass} bg-gradient-to-br from-[#e8b4b8]/10 to-[#e8b4b8]/5`}>
+      <div className="flex items-center gap-2">
+        <Truck className="h-4 w-4 text-[#c9c4be] shrink-0" />
+        <p className="font-sans text-[13px] font-medium text-[#999]">
+          Укажите адрес для расчёта доставки
+        </p>
+      </div>
+      <p className="font-sans text-[11px] text-transparent mt-1 ml-6" aria-hidden="true">
+        &nbsp;
       </p>
     </div>
   )
