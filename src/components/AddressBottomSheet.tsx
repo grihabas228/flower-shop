@@ -176,7 +176,14 @@ export function AddressBottomSheet() {
     }
   }, [setZone, markUnavailable])
 
-  const handleConfirm = () => setOpen(false)
+  const handleClose = useCallback(() => {
+    setOpen(false)
+    // Safety net: ensure scroll position after iOS finishes all layout shifts
+    const el = document.getElementById('mobile-scroll')
+    if (el) setTimeout(() => { el.scrollTop = 0 }, 50)
+  }, [])
+
+  const handleConfirm = handleClose
 
   const handleClear = useCallback(() => {
     setAddressValue('')
@@ -201,7 +208,7 @@ export function AddressBottomSheet() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
             className="fixed inset-0 z-[80] bg-[#2d2d2d]/40 lg:hidden"
-            onClick={() => setOpen(false)}
+            onClick={handleClose}
           />
 
           {/* Sheet */}
@@ -218,7 +225,7 @@ export function AddressBottomSheet() {
               <div className="flex items-center justify-between">
                 <h2 className="font-serif text-xl text-[#2d2d2d]">Адрес доставки</h2>
                 <button
-                  onClick={() => setOpen(false)}
+                  onClick={handleClose}
                   className="p-1 text-[#8a8a8a] hover:text-[#2d2d2d]"
                   aria-label="Закрыть"
                 >
