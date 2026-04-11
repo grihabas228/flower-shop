@@ -361,38 +361,43 @@ function DeliveryInfoSlot({
   addressUnavailable: boolean
   addressSelected: boolean
 }) {
-  // All variants use the same fixed min-h-[56px] to prevent layout shift
-  const slotClass = 'min-h-[56px] rounded-xl px-4 py-3'
+  // Shared outer shell — identical px, py, rounded, min-h, bg for ALL states
+  // Two-line inner structure: line1 (icon + text 13px) + line2 (text 11px, always rendered)
+  const shell = 'min-h-[56px] rounded-xl px-4 py-3 bg-gradient-to-br from-[#e8b4b8]/10 to-[#e8b4b8]/5'
 
   // Unavailable
   if (addressUnavailable) {
     return (
-      <div className={`${slotClass} flex items-center gap-2.5 bg-red-50 transition-opacity duration-150`}>
-        <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
-        <p className="font-sans text-[13px] text-red-600">
-          Доставка в этот район пока недоступна
-        </p>
+      <div className={`${shell} !bg-red-50`}>
+        <div className="flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
+          <p className="font-sans text-[13px] font-medium text-red-600">
+            Доставка в этот район пока недоступна
+          </p>
+        </div>
+        <p className="font-sans text-[11px] text-transparent mt-1 ml-6" aria-hidden="true">&nbsp;</p>
       </div>
     )
   }
 
-  // Loading skeleton
+  // Loading skeleton — same two-line structure, skeleton bars instead of text
   if (loading) {
     return (
-      <div className={`${slotClass} flex items-center gap-2.5 bg-gradient-to-br from-[#e8b4b8]/10 to-[#e8b4b8]/5 animate-pulse`}>
-        <Loader2 className="h-4 w-4 text-[#e8b4b8] shrink-0 animate-spin" />
-        <div className="flex-1 space-y-1.5">
-          <div className="h-3 w-32 rounded bg-[#e8e4de]" />
-          <div className="h-2.5 w-20 rounded bg-[#e8e4de]/60" />
+      <div className={shell}>
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 text-[#e8b4b8] shrink-0 animate-spin" />
+          <div className="h-[18px] w-36 rounded bg-[#e8e4de] animate-pulse" />
         </div>
+        <div className="h-[16px] w-24 rounded bg-[#e8e4de]/60 animate-pulse mt-1 ml-6" />
       </div>
     )
   }
 
-  // Result
+  // Result — always render line2 (invisible spacer when no freeFrom text)
   if (zoneResult) {
+    const hasFreeLine = zoneResult.freeFrom && !zoneResult.isFree
     return (
-      <div className={`${slotClass} bg-gradient-to-br from-[#e8b4b8]/10 to-[#e8b4b8]/5 transition-opacity duration-150`}>
+      <div className={shell}>
         <div className="flex items-center gap-2">
           <Truck className="h-4 w-4 text-[#e8b4b8] shrink-0" />
           <p className="font-sans text-[13px] font-medium text-[#2d2d2d]">
@@ -405,27 +410,23 @@ function DeliveryInfoSlot({
             )}
           </p>
         </div>
-        {zoneResult.freeFrom && !zoneResult.isFree && (
-          <p className="font-sans text-[11px] text-[#8a8a8a] mt-1 ml-6">
-            Бесплатно от {zoneResult.freeFrom.toLocaleString('ru-RU')} ₽
-          </p>
-        )}
+        <p className={`font-sans text-[11px] mt-1 ml-6 ${hasFreeLine ? 'text-[#8a8a8a]' : 'text-transparent'}`}>
+          {hasFreeLine ? `Бесплатно от ${zoneResult.freeFrom!.toLocaleString('ru-RU')} ₽` : '\u00A0'}
+        </p>
       </div>
     )
   }
 
-  // Empty — hint: same bg, structure, and two-line layout as result
+  // Empty — hint, identical shell and two-line structure
   return (
-    <div className={`${slotClass} bg-gradient-to-br from-[#e8b4b8]/10 to-[#e8b4b8]/5`}>
+    <div className={shell}>
       <div className="flex items-center gap-2">
         <Truck className="h-4 w-4 text-[#c9c4be] shrink-0" />
         <p className="font-sans text-[13px] font-medium text-[#999]">
           Укажите адрес для расчёта доставки
         </p>
       </div>
-      <p className="font-sans text-[11px] text-transparent mt-1 ml-6" aria-hidden="true">
-        &nbsp;
-      </p>
+      <p className="font-sans text-[11px] text-transparent mt-1 ml-6" aria-hidden="true">&nbsp;</p>
     </div>
   )
 }
