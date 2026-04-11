@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { X, Truck, AlertCircle, Check } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AddressInput, type DaDataSuggestion } from '@/components/AddressInput'
@@ -84,19 +84,11 @@ export function AddressBottomSheet() {
     }
   }, [open, zone])
 
-  // Lock scroll when opening — unlock is deferred to onExitComplete so the
-  // exit animation finishes before we restore scroll position.
-  const unlockRef = useRef<(() => void) | null>(null)
+  // Lock scroll while sheet is open
   useEffect(() => {
-    if (open) {
-      unlockRef.current = lockMobileScroll()
-    }
+    if (!open) return
+    return lockMobileScroll()
   }, [open])
-
-  const handleExitComplete = useCallback(() => {
-    unlockRef.current?.()
-    unlockRef.current = null
-  }, [])
 
   const handleAddressSelect = useCallback(async (suggestion: DaDataSuggestion) => {
     const { data } = suggestion
@@ -199,7 +191,7 @@ export function AddressBottomSheet() {
   }, [clear])
 
   return (
-    <AnimatePresence onExitComplete={handleExitComplete}>
+    <AnimatePresence>
       {open && (
         <>
           {/* Backdrop */}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createUrl } from '@/utilities/createUrl'
 import { cn } from '@/utilities/cn'
@@ -25,18 +25,11 @@ export function MobileFiltersSheet({ totalProducts }: Props) {
     return () => window.removeEventListener('fleur:open-filters', handler)
   }, [])
 
-  // Lock scroll — unlock deferred to onExitComplete
-  const unlockRef = useRef<(() => void) | null>(null)
+  // Lock scroll while sheet is open
   useEffect(() => {
-    if (open) {
-      unlockRef.current = lockMobileScroll()
-    }
+    if (!open) return
+    return lockMobileScroll()
   }, [open])
-
-  const handleExitComplete = useCallback(() => {
-    unlockRef.current?.()
-    unlockRef.current = null
-  }, [])
 
   const activeOccasion = searchParams.get('occasion') || ''
   const activePriceMin = searchParams.get('priceMin') || ''
@@ -88,7 +81,7 @@ export function MobileFiltersSheet({ totalProducts }: Props) {
   }
 
   return (
-    <AnimatePresence onExitComplete={handleExitComplete}>
+    <AnimatePresence>
       {open && (
         <>
           {/* Backdrop */}

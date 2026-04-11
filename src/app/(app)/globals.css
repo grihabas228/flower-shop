@@ -247,13 +247,8 @@
     }
   }
 
-  /* Scroll lock — position:fixed prevents iOS Safari from shifting scroll
-     when keyboards open/close or sheet content changes height. The JS sets
-     top:-Npx to keep visible content in place. */
+  /* Scroll lock — just prevent scrolling, no position changes */
   .mobile-scroll-container.scroll-locked {
-    position: fixed !important;
-    left: 0 !important;
-    right: 0 !important;
     overflow-y: hidden !important;
   }
 }
