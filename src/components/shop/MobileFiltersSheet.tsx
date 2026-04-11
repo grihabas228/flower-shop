@@ -1,21 +1,57 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createUrl } from '@/utilities/createUrl'
 import { cn } from '@/utilities/cn'
 import { X, ChevronDown } from 'lucide-react'
 import { Drawer } from 'vaul'
 import { priceRanges, occasions, colors, recipients } from '@/lib/constants'
+import { MOBILE_SCROLL_ID } from '@/components/MobileScrollContainer'
 
 type Props = {
   totalProducts: number
+}
+
+/** Restore #mobile-scroll position after drawer closes (iOS Safari fix) */
+function restoreMobileScroll(scrollTop: number) {
+  const el = document.getElementById(MOBILE_SCROLL_ID)
+  if (!el) return
+  const restore = () => {
+    el.scrollTop = scrollTop
+    document.body.style.removeProperty('position')
+    document.body.style.removeProperty('top')
+    document.body.style.removeProperty('left')
+    document.body.style.removeProperty('right')
+    document.body.style.removeProperty('overflow')
+    document.body.style.removeProperty('pointer-events')
+  }
+  restore()
+  requestAnimationFrame(restore)
+  setTimeout(restore, 0)
+  setTimeout(restore, 50)
+  setTimeout(restore, 150)
+  setTimeout(restore, 300)
 }
 
 export function MobileFiltersSheet({ totalProducts }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [open, setOpen] = useState(false)
+  const savedScrollTop = useRef(0)
+
+  // Save scroll position whenever drawer opens
+  useEffect(() => {
+    if (open) {
+      const el = document.getElementById(MOBILE_SCROLL_ID)
+      if (el) savedScrollTop.current = el.scrollTop
+    }
+  }, [open])
+
+  const handleOpenChange = useCallback((isOpen: boolean) => {
+    setOpen(isOpen)
+    if (!isOpen) restoreMobileScroll(savedScrollTop.current)
+  }, [])
 
   // Listen for the custom event from the header filter button
   useEffect(() => {
@@ -61,8 +97,8 @@ export function MobileFiltersSheet({ totalProducts }: Props) {
     if (q) params.set('q', q)
     if (cat) params.set('category', cat)
     router.push(createUrl('/shop', params), { scroll: false })
-    setOpen(false)
-  }, [router, searchParams])
+    handleOpenChange(false)
+  }, [router, searchParams, handleOpenChange])
 
   function getPluralBouquets(n: number): string {
     const lastTwo = n % 100
@@ -76,7 +112,7 @@ export function MobileFiltersSheet({ totalProducts }: Props) {
   return (
     <Drawer.Root
       open={open}
-      onOpenChange={(o) => setOpen(o)}
+      onOpenChange={handleOpenChange}
       noBodyStyles
       repositionInputs={false}
       shouldScaleBackground={false}
@@ -99,7 +135,7 @@ export function MobileFiltersSheet({ totalProducts }: Props) {
                   Фильтры
                 </Drawer.Title>
                 <button
-                  onClick={() => setOpen(false)}
+                  onClick={() => handleOpenChange(false)}
                   className="p-1 text-[#8a8a8a] hover:text-[#2d2d2d]"
                   aria-label="Закрыть"
                 >
@@ -187,7 +223,7 @@ export function MobileFiltersSheet({ totalProducts }: Props) {
           <div className="border-t border-[#e8e4de] bg-[#faf5f0] px-5 py-4 safe-bottom-nav">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setOpen(false)}
+                onClick={() => handleOpenChange(false)}
                 className="flex-1 rounded-full bg-[#2d2d2d] py-3.5 text-center font-sans text-[14px] font-medium text-[#faf5f0] transition-colors hover:bg-[#2d2d2d]/90"
               >
                 Показать {getPluralBouquets(totalProducts)}

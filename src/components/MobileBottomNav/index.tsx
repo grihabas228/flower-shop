@@ -20,7 +20,8 @@ import { useFavorites } from '@/providers/FavoritesProvider'
 import { AuthModal } from '@/components/AuthModal'
 import { cn } from '@/utilities/cn'
 import { Drawer } from 'vaul'
-import React, { useMemo, useState, useEffect, Suspense } from 'react'
+import React, { useMemo, useState, useEffect, useRef, useCallback, Suspense } from 'react'
+import { MOBILE_SCROLL_ID } from '@/components/MobileScrollContainer'
 
 const menuNavLinks = [
   { label: 'Букеты', href: '/shop?category=bukety' },
@@ -47,6 +48,39 @@ function BottomNavInner() {
   const { count: favoritesCount } = useFavorites()
   const [menuOpen, setMenuOpen] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const savedScrollTop = useRef(0)
+
+  // Save scroll position when menu opens
+  useEffect(() => {
+    if (menuOpen) {
+      const el = document.getElementById(MOBILE_SCROLL_ID)
+      if (el) savedScrollTop.current = el.scrollTop
+    }
+  }, [menuOpen])
+
+  const handleMenuOpenChange = useCallback((isOpen: boolean) => {
+    setMenuOpen(isOpen)
+    if (!isOpen) {
+      // Restore scroll position (iOS Safari fix)
+      const target = savedScrollTop.current
+      const el = document.getElementById(MOBILE_SCROLL_ID)
+      if (el) {
+        const restore = () => {
+          el.scrollTop = target
+          document.body.style.removeProperty('position')
+          document.body.style.removeProperty('top')
+          document.body.style.removeProperty('overflow')
+          document.body.style.removeProperty('pointer-events')
+        }
+        restore()
+        requestAnimationFrame(restore)
+        setTimeout(restore, 0)
+        setTimeout(restore, 50)
+        setTimeout(restore, 150)
+        setTimeout(restore, 300)
+      }
+    }
+  }, [])
 
   const handleAccountClick = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -133,7 +167,7 @@ function BottomNavInner() {
 
           {/* Menu button */}
           <button
-            onClick={() => setMenuOpen(true)}
+            onClick={() => handleMenuOpenChange(true)}
             className="relative flex flex-1 flex-col items-center justify-center gap-0.5 text-[#9a9a9a] transition-colors"
           >
             <MoreHorizontal className="h-[22px] w-[22px]" strokeWidth={1.5} />
@@ -143,7 +177,7 @@ function BottomNavInner() {
       </nav>
 
       {/* Menu drawer — vaul with direction=left */}
-      <MenuDrawer open={menuOpen} onOpenChange={setMenuOpen} />
+      <MenuDrawer open={menuOpen} onOpenChange={handleMenuOpenChange} />
 
       <AuthModal open={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </>

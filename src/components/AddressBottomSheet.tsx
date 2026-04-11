@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { X, Truck, AlertCircle, Check } from 'lucide-react'
 import { Drawer } from 'vaul'
 import { AddressInput, type DaDataSuggestion } from '@/components/AddressInput'
 import { YandexMap } from '@/components/YandexMap'
 import { useDelivery, type DeliveryZoneSnapshot } from '@/providers/DeliveryProvider'
+import { MOBILE_SCROLL_ID } from '@/components/MobileScrollContainer'
 
 const LAST_ADDRESS_KEY = 'fleur_last_address'
 const SHOP_COORDS: [number, number] = [55.751574, 37.573856]
@@ -24,6 +25,7 @@ function formatRub(n: number): string {
 export function AddressBottomSheet() {
   const { zone, setZone, markUnavailable, clear } = useDelivery()
   const [open, setOpen] = useState(false)
+  const savedScrollTop = useRef(0)
 
   const [addressValue, setAddressValue] = useState('')
   const [addressSelected, setAddressSelected] = useState(false)
@@ -39,6 +41,14 @@ export function AddressBottomSheet() {
     isFree: boolean
     freeFrom: number | null
   } | null>(null)
+
+  // Save scroll position whenever drawer opens
+  useEffect(() => {
+    if (open) {
+      const el = document.getElementById(MOBILE_SCROLL_ID)
+      if (el) savedScrollTop.current = el.scrollTop
+    }
+  }, [open])
 
   // Open via custom event
   useEffect(() => {
@@ -171,7 +181,36 @@ export function AddressBottomSheet() {
     }
   }, [setZone, markUnavailable])
 
-  const handleClose = useCallback(() => setOpen(false), [])
+  /** Restore scroll position after drawer closes to prevent iOS Safari jump */
+  const restoreScroll = useCallback(() => {
+    const el = document.getElementById(MOBILE_SCROLL_ID)
+    if (!el) return
+    const target = savedScrollTop.current
+    const restore = () => {
+      el.scrollTop = target
+      // Also clean up any leftover inline styles vaul may set
+      document.body.style.removeProperty('position')
+      document.body.style.removeProperty('top')
+      document.body.style.removeProperty('left')
+      document.body.style.removeProperty('right')
+      document.body.style.removeProperty('overflow')
+      document.body.style.removeProperty('pointer-events')
+    }
+    restore()
+    // Multiple retries to catch async layout recalculations on iOS Safari
+    requestAnimationFrame(restore)
+    setTimeout(restore, 0)
+    setTimeout(restore, 50)
+    setTimeout(restore, 150)
+    setTimeout(restore, 300)
+  }, [])
+
+  const handleOpenChange = useCallback((isOpen: boolean) => {
+    setOpen(isOpen)
+    if (!isOpen) restoreScroll()
+  }, [restoreScroll])
+
+  const handleClose = useCallback(() => handleOpenChange(false), [handleOpenChange])
 
   const handleConfirm = handleClose
 
@@ -190,7 +229,7 @@ export function AddressBottomSheet() {
   return (
     <Drawer.Root
       open={open}
-      onOpenChange={(o) => { if (!o) handleClose() }}
+      onOpenChange={handleOpenChange}
       noBodyStyles
       repositionInputs={false}
       shouldScaleBackground={false}
