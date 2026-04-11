@@ -247,10 +247,6 @@
     }
   }
 
-  /* Scroll lock — just prevent scrolling, no position changes */
-  .mobile-scroll-container.scroll-locked {
-    overflow-y: hidden !important;
-  }
 }
 
 html {

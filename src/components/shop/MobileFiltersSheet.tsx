@@ -7,7 +7,7 @@ import { cn } from '@/utilities/cn'
 import { X, ChevronDown } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { priceRanges, occasions, colors, recipients } from '@/lib/constants'
-import { lockMobileScroll } from '@/utilities/lockMobileScroll'
+import { RemoveScroll } from 'react-remove-scroll'
 
 type Props = {
   totalProducts: number
@@ -24,12 +24,6 @@ export function MobileFiltersSheet({ totalProducts }: Props) {
     window.addEventListener('fleur:open-filters', handler)
     return () => window.removeEventListener('fleur:open-filters', handler)
   }, [])
-
-  // Lock scroll while sheet is open
-  useEffect(() => {
-    if (!open) return
-    return lockMobileScroll()
-  }, [open])
 
   const activeOccasion = searchParams.get('occasion') || ''
   const activePriceMin = searchParams.get('priceMin') || ''
@@ -83,25 +77,26 @@ export function MobileFiltersSheet({ totalProducts }: Props) {
   return (
     <AnimatePresence>
       {open && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            className="fixed inset-0 z-[70] bg-[#2d2d2d]/40 md:hidden"
-            onClick={() => setOpen(false)}
-          />
+        <RemoveScroll>
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="fixed inset-0 z-[70] bg-[#2d2d2d]/40 md:hidden"
+              onClick={() => setOpen(false)}
+            />
 
-          {/* Sheet */}
-          <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="fixed bottom-0 left-0 right-0 z-[70] top-[120px] overflow-y-auto rounded-t-3xl bg-[#faf5f0] md:hidden safe-bottom-nav"
-          >
+            {/* Sheet */}
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="fixed bottom-0 left-0 right-0 z-[70] top-[120px] overflow-y-auto rounded-t-3xl bg-[#faf5f0] md:hidden safe-bottom-nav"
+            >
             {/* Handle */}
             <div className="sticky top-0 z-10 bg-[#faf5f0] pt-3 pb-2 px-5">
               <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#e8e4de]" />
@@ -208,8 +203,9 @@ export function MobileFiltersSheet({ totalProducts }: Props) {
                 </button>
               </div>
             </div>
-          </motion.div>
-        </>
+            </motion.div>
+          </>
+        </RemoveScroll>
       )}
     </AnimatePresence>
   )

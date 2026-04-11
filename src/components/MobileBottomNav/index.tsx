@@ -19,7 +19,7 @@ import { useAuth } from '@/providers/Auth'
 import { useFavorites } from '@/providers/FavoritesProvider'
 import { AuthModal } from '@/components/AuthModal'
 import { cn } from '@/utilities/cn'
-import { lockMobileScroll } from '@/utilities/lockMobileScroll'
+import { RemoveScroll } from 'react-remove-scroll'
 import { motion, AnimatePresence } from 'framer-motion'
 import React, { useMemo, useState, useEffect, Suspense } from 'react'
 
@@ -174,15 +174,11 @@ function MenuDrawer({ onClose }: { onClose: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, searchParams])
 
-  // Lock scroll and restore position on close
-  useEffect(() => {
-    return lockMobileScroll()
-  }, [])
-
   return (
-    <>
-      {/* Backdrop */}
-      <motion.div
+    <RemoveScroll>
+      <>
+        {/* Backdrop */}
+        <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -321,7 +317,8 @@ function MenuDrawer({ onClose }: { onClose: () => void }) {
             <span>+7 (495) 123-45-67</span>
           </a>
         </div>
-      </motion.div>
-    </>
+        </motion.div>
+      </>
+    </RemoveScroll>
   )
 }
