@@ -255,11 +255,13 @@ a[aria-disabled="true"] {
   cursor: not-allowed;
 }
 
-/* Prevent iOS auto-zoom on inputs with font-size < 16px.
-   Apply this class on a wrapper around inputs to force 16px. */
-.ios-no-zoom input,
-.ios-no-zoom textarea {
-  font-size: 16px !important;
+/* Prevent iOS auto-zoom on inputs with font-size < 16px. */
+@media screen and (max-width: 768px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
 }
 
 .scrollbar-hide {
