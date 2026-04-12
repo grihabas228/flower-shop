@@ -310,6 +310,96 @@ export const seed = async ({
     ),
   )
 
+  // ── Flower product: "Красные розы" with quantity variants ──
+  payload.logger.info(`— Seeding flower product...`)
+
+  const quantityVariantType = await payload.create({
+    collection: 'variantTypes',
+    data: { name: 'quantity', label: 'Количество' },
+  })
+
+  const quantityOptions: VariantOption[] = []
+  for (const opt of [
+    { label: '15 роз', value: '15' },
+    { label: '25 роз', value: '25' },
+    { label: '35 роз', value: '35' },
+    { label: '51 роза', value: '51' },
+  ]) {
+    const result = await payload.create({
+      collection: 'variantOptions',
+      data: { ...opt, variantType: quantityVariantType.id },
+    })
+    quantityOptions.push(result)
+  }
+
+  const [qty15, qty25, qty35, qty51] = quantityOptions
+
+  // Fetch 4 flower images from Unsplash (free, no auth needed for small sizes)
+  const [flowerImg1Buf, flowerImg2Buf, flowerImg3Buf, flowerImg4Buf] = await Promise.all([
+    fetchFileByURL('https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=800&q=80'),
+    fetchFileByURL('https://images.unsplash.com/photo-1455659817273-f96807779a8a?w=800&q=80'),
+    fetchFileByURL('https://images.unsplash.com/photo-1487530811176-3780de880c2d?w=800&q=80'),
+    fetchFileByURL('https://images.unsplash.com/photo-1494972308805-463bc619d34e?w=800&q=80'),
+  ])
+
+  const [flowerImg1, flowerImg2, flowerImg3, flowerImg4] = await Promise.all([
+    payload.create({ collection: 'media', data: { alt: 'Букет красных роз — вид спереди' }, file: { ...flowerImg1Buf, name: 'roses-front.jpg' } }),
+    payload.create({ collection: 'media', data: { alt: 'Букет красных роз — крупный план' }, file: { ...flowerImg2Buf, name: 'roses-closeup.jpg' } }),
+    payload.create({ collection: 'media', data: { alt: 'Букет красных роз — в упаковке' }, file: { ...flowerImg3Buf, name: 'roses-wrapped.jpg' } }),
+    payload.create({ collection: 'media', data: { alt: 'Букет красных роз — с зеленью' }, file: { ...flowerImg4Buf, name: 'roses-greenery.jpg' } }),
+  ])
+
+  const productRoses = await payload.create({
+    collection: 'products',
+    depth: 0,
+    data: {
+      title: 'Красные розы',
+      slug: 'krasnye-rozy',
+      enableVariants: true,
+      variantTypes: [quantityVariantType].map((t) => t.id),
+      variantDisplayType: 'quantity',
+      gallery: [
+        { image: flowerImg1.id },
+        { image: flowerImg2.id },
+        { image: flowerImg3.id },
+        { image: flowerImg4.id },
+      ],
+      categories: [accessoriesCategory].map((c) => c.id), // "Букеты" category
+      relatedProducts: [productTshirt.id, productHat.id],
+      priceInUSD: 3999,
+      inventory: 0, // managed by variants
+      meta: {
+        title: 'Красные розы — FLEUR',
+        description: 'Роскошный букет красных роз с бесплатной доставкой по Москве',
+        image: flowerImg1.id,
+      },
+      _status: 'published',
+    },
+  })
+
+  // Create quantity variants with different prices
+  await Promise.all(
+    [
+      { option: qty15, price: 3999, inventory: 50 },
+      { option: qty25, price: 5999, inventory: 30 },
+      { option: qty35, price: 7999, inventory: 20 },
+      { option: qty51, price: 11999, inventory: 10 },
+    ].map(({ option, price, inventory }) =>
+      payload.create({
+        collection: 'variants',
+        depth: 0,
+        data: {
+          product: productRoses.id,
+          options: [option.id],
+          priceInUSD: price,
+          priceInUSDEnabled: true,
+          inventory,
+          _status: 'published',
+        },
+      }),
+    ),
+  )
+
   payload.logger.info(`— Seeding contact form...`)
 
   const contactForm = await payload.create({
