@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
-import { Heart, ShoppingBag, Clock } from 'lucide-react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
+import { Heart, ShoppingBag, Clock, Check, Minus, Plus } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCart } from '@payloadcms/plugin-ecommerce/client/react'
@@ -58,62 +58,106 @@ function formatPrice(price: number): string {
 }
 
 export function ProductCardShop({ product }: Props) {
-  const { addItem, isLoading } = useCart()
+  const { addItem, cart, incrementItem, decrementItem, removeItem } = useCart()
   const { estimatedTime, hasAddress } = useDelivery()
   const { isFavorite, toggleFavorite } = useFavorites()
   const isWishlisted = isFavorite(product.id)
-  const [isHovered, setIsHovered] = useState(false)
+
+  // Local loading state — isolated per card
+  const [isAdding, setIsAdding] = useState(false)
+  const [justAdded, setJustAdded] = useState(false)
 
   const variants = product.variants || []
   const hasVariants = product.enableVariants && variants.length > 0
 
-  // Min price for variants, current price for simple products
   const { displayPrice, hasMultiplePrices } = useMemo(() => {
     if (!hasVariants || variants.length === 0) {
       return { displayPrice: product.priceInUSD ?? 0, hasMultiplePrices: false }
     }
-    const prices = variants
-      .map((v) => v.priceInUSD ?? 0)
-      .filter((p) => p > 0)
+    const prices = variants.map((v) => v.priceInUSD ?? 0).filter((p) => p > 0)
     if (prices.length === 0) return { displayPrice: product.priceInUSD ?? 0, hasMultiplePrices: false }
     const min = Math.min(...prices)
     const max = Math.max(...prices)
     return { displayPrice: min, hasMultiplePrices: min !== max }
   }, [hasVariants, variants, product.priceInUSD])
 
-  // Default variant (first available)
   const defaultVariant = hasVariants ? variants[0] : undefined
 
-  // Resolve main image
   const mainImage = useMemo(() => {
     const gallery = product.gallery || []
     return gallery[0]?.image || product.meta?.image || null
   }, [product.gallery, product.meta])
 
-  // Delivery time display
   const deliveryDisplay = hasAddress ? estimatedTime : 'от 2 ч'
 
-  // Pseudo order count (stable per product ID)
   const orderCount = useMemo(() => {
     const seed = product.id * 7 + 13
     return 20 + (seed % 180)
   }, [product.id])
 
+  // Find this product in cart
+  const cartItem = useMemo(() => {
+    if (!cart?.items?.length) return null
+    return cart.items.find((item) => {
+      if (!item.product) return false
+      const pid = typeof item.product === 'object' ? item.product.id : item.product
+      return pid === product.id
+    }) ?? null
+  }, [cart, product.id])
+
+  const inCart = !!cartItem && (cartItem.quantity || 0) > 0
+  const cartQuantity = cartItem?.quantity || 0
+
+  // Clear justAdded after 600ms
+  useEffect(() => {
+    if (!justAdded) return
+    const timer = setTimeout(() => setJustAdded(false), 600)
+    return () => clearTimeout(timer)
+  }, [justAdded])
+
   const handleAddToCart = useCallback(
     async (e: React.MouseEvent) => {
       e.preventDefault()
       e.stopPropagation()
+      if (isAdding) return
+      setIsAdding(true)
       try {
         await addItem({
           product: product.id,
           variant: defaultVariant?.id ?? undefined,
         })
+        setJustAdded(true)
         toast.success('Добавлено в корзину')
       } catch {
         toast.error('Ошибка при добавлении')
+      } finally {
+        setIsAdding(false)
       }
     },
-    [addItem, product.id, defaultVariant],
+    [addItem, product.id, defaultVariant, isAdding],
+  )
+
+  const handleIncrement = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      if (cartItem?.id) incrementItem(cartItem.id)
+    },
+    [incrementItem, cartItem],
+  )
+
+  const handleDecrement = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      if (!cartItem?.id) return
+      if (cartQuantity <= 1) {
+        removeItem(cartItem.id)
+      } else {
+        decrementItem(cartItem.id)
+      }
+    },
+    [decrementItem, removeItem, cartItem, cartQuantity],
   )
 
   const handleWishlist = useCallback(
@@ -128,14 +172,16 @@ export function ProductCardShop({ product }: Props) {
   return (
     <div
       className={cn(
-        'group relative flex flex-col overflow-hidden rounded-[16px] border border-[#ebe6e0] bg-white transition-transform duration-200',
-        'hover:-translate-y-[2px]',
+        'group relative flex flex-col overflow-hidden rounded-[16px] bg-[#fffefa] transition-all duration-250 ease-out',
+        'border border-black/[0.06] shadow-[0_1px_3px_rgba(0,0,0,0.04)]',
+        'hover:-translate-y-[2px] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)]',
       )}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
       {/* 1. PHOTO */}
-      <Link href={`/products/${product.slug}`} className="relative aspect-[3/4] w-full bg-[#f5f0ea]">
+      <Link
+        href={`/products/${product.slug}`}
+        className="relative aspect-[3/4] w-full bg-[#f5f0ea] active:scale-[0.97] transition-transform duration-150"
+      >
         {mainImage?.url ? (
           <Image
             src={mainImage.url}
@@ -150,7 +196,7 @@ export function ProductCardShop({ product }: Props) {
           </div>
         )}
 
-        {/* Wishlist button */}
+        {/* Wishlist */}
         <button
           onClick={handleWishlist}
           className={cn(
@@ -173,7 +219,7 @@ export function ProductCardShop({ product }: Props) {
       <div className="flex flex-1 flex-col">
         {/* 2. TITLE */}
         <Link href={`/products/${product.slug}`}>
-          <h3 className="line-clamp-2 px-3 pt-2.5 pb-0 font-sans text-[13px] font-semibold leading-[1.3] text-[#2d2d2d]">
+          <h3 className="line-clamp-2 px-3 pt-2.5 font-sans text-[13px] font-semibold leading-[1.3] text-[#2d2d2d]">
             {product.title}
           </h3>
         </Link>
@@ -190,24 +236,54 @@ export function ProductCardShop({ product }: Props) {
           </span>
         </div>
 
-        {/* 4. PRICE BUTTON */}
+        {/* 4. PRICE BUTTON / QUANTITY CONTROL */}
         <div className="mt-auto px-3 pb-3">
-          <button
-            onClick={handleAddToCart}
-            disabled={isLoading}
-            className={cn(
-              'flex h-10 w-full items-center justify-between rounded-xl bg-[#2d2d2d] px-3.5 font-sans transition-all duration-200',
-              'hover:bg-[#e8b4b8] active:scale-[0.98]',
-              'disabled:opacity-50 disabled:cursor-not-allowed',
-              'sm:h-10 h-9',
-            )}
-          >
-            <span className="text-[14px] font-bold text-[#faf5f0] sm:text-[15px]">
-              {hasMultiplePrices && 'от '}
-              {formatPrice(displayPrice)}&nbsp;&#8381;
-            </span>
-            <ShoppingBag className="h-4 w-4 text-[#faf5f0]" strokeWidth={1.8} />
-          </button>
+          {/* Just added — success flash */}
+          {justAdded ? (
+            <div className="flex h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-[#e8b4b8] font-sans transition-all duration-200 sm:h-10">
+              <Check className="h-4 w-4 text-white" strokeWidth={2.5} />
+              <span className="text-[13px] font-semibold text-white">Добавлено</span>
+            </div>
+          ) : inCart ? (
+            /* Quantity control */
+            <div className="flex h-9 w-full items-center rounded-xl bg-[#2d2d2d] font-sans sm:h-10">
+              <button
+                onClick={handleDecrement}
+                className="flex h-full w-10 shrink-0 items-center justify-center text-[#faf5f0] transition-opacity hover:opacity-70 active:scale-90 sm:w-11"
+                aria-label="Уменьшить"
+              >
+                <Minus className="h-3.5 w-3.5" strokeWidth={2} />
+              </button>
+              <span className="flex-1 text-center text-[14px] font-bold tabular-nums text-[#faf5f0] sm:text-[15px]">
+                {cartQuantity}
+              </span>
+              <button
+                onClick={handleIncrement}
+                className="flex h-full w-10 shrink-0 items-center justify-center text-[#faf5f0] transition-opacity hover:opacity-70 active:scale-90 sm:w-11"
+                aria-label="Увеличить"
+              >
+                <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+              </button>
+            </div>
+          ) : (
+            /* Default price button */
+            <button
+              onClick={handleAddToCart}
+              disabled={isAdding}
+              className={cn(
+                'flex h-9 w-full items-center justify-between rounded-xl bg-[#2d2d2d] px-3.5 font-sans transition-all duration-250',
+                'hover:bg-[#e8b4b8] active:scale-[0.98]',
+                'disabled:opacity-60 disabled:cursor-not-allowed',
+                'sm:h-10',
+              )}
+            >
+              <span className="text-[14px] font-bold text-[#faf5f0] sm:text-[15px]">
+                {hasMultiplePrices && 'от '}
+                {formatPrice(displayPrice)}&nbsp;&#8381;
+              </span>
+              <ShoppingBag className="h-4 w-4 text-[#faf5f0]" strokeWidth={1.8} />
+            </button>
+          )}
         </div>
       </div>
     </div>
