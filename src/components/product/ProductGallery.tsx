@@ -160,7 +160,7 @@ export function ProductGallery({ gallery }: Props) {
           {gallery.length > 1 && (
             <div
               ref={mobileThumbnailsRef}
-              className="flex w-[60px] shrink-0 flex-col gap-1.5 overflow-y-auto px-[4px] scrollbar-hide"
+              className="flex w-[60px] shrink-0 flex-col gap-1.5 overflow-y-auto px-[4px] pt-[4px] scrollbar-hide"
             >
               {gallery.map((item, i) => (
                 <button
