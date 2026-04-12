@@ -32,8 +32,17 @@ type Props = {
 /**
  * Floating inverted-L element for mobile product pages.
  *
- * Right column: vertical stack of variant pills (size / quantity).
- * Bottom row: cart button with price, joined seamlessly to the column.
+ * Shape (rotated 180deg L):
+ *          ╭──╮
+ *          │S │
+ *          │M │
+ *          │L │
+ *    ╭─────┤  │
+ *    │🛒 5900₽│
+ *    ╰────────╯
+ *
+ * Pill column: narrow vertical stack, right-aligned.
+ * Cart button: wider horizontal bar extending left, joined seamlessly.
  *
  * Hides when the inline variant selector scrolls into view.
  * md:hidden — desktop never sees this.
@@ -54,7 +63,6 @@ export function FloatingCartL({
   useEffect(() => {
     const sentinel = document.getElementById('variant-selector-section')
     if (!sentinel) {
-      // No variant section exists — observe the add-to-cart button instead
       const fallback = document.getElementById('product-add-to-cart')
       if (!fallback) return
       const scrollContainer = document.getElementById(MOBILE_SCROLL_ID) || null
@@ -92,14 +100,10 @@ export function FloatingCartL({
     }
   }, [addItem, productId, selectedVariantId, inStock, isLoading])
 
-  // Debug: remove after verifying pills work
-  useEffect(() => {
-    console.log('[FloatingCartL] pills:', JSON.stringify(pills, null, 2))
-    console.log('[FloatingCartL] selectedVariantId:', selectedVariantId)
-    console.log('[FloatingCartL] price:', price, 'inStock:', inStock)
-  }, [pills, selectedVariantId, price, inStock])
-
   const hasPills = pills.length > 1
+
+  // Width of pill column (outer button = 44px + 2px padding each side)
+  const pillColWidth = 48
 
   return (
     <div
@@ -111,66 +115,73 @@ export function FloatingCartL({
           : 'pointer-events-none translate-y-6 opacity-0',
       )}
     >
-      {/* Unified rounded shape: pills column + cart button */}
+      {/*
+        Inverted-L: flex-col items-end so both children share the RIGHT edge.
+        The pill column is narrow (~48px), the cart button is wider → L shape.
+      */}
       <div className="flex flex-col items-end">
-        <div
-          className={cn(
-            'flex flex-col',
-            hasPills ? 'overflow-hidden rounded-[16px] shadow-xl' : '',
-          )}
-        >
-          {/* ── Vertical pill column ── */}
-          {hasPills && (
-            <div
-              className="flex max-h-[260px] flex-col items-center gap-1 overflow-y-auto py-2 scrollbar-hide"
-              style={{ backgroundColor: '#3d3d3d' }}
-            >
-              {pills.map((pill) => {
-                const isActive = pill.id === selectedVariantId
-                return (
-                  <button
-                    key={pill.optionId}
-                    onClick={() => onSelectVariant(pill.id)}
-                    disabled={!pill.available}
-                    className="group flex h-[44px] w-[44px] shrink-0 items-center justify-center"
-                  >
-                    <span
-                      className={cn(
-                        'flex h-[40px] w-[40px] items-center justify-center rounded-full font-sans text-[12px] font-semibold transition-all duration-150',
-                        isActive
-                          ? 'bg-[#faf5f0] text-[#2d2d2d]'
-                          : pill.available
-                            ? 'bg-[rgba(250,245,240,0.15)] text-[#faf5f0] group-active:bg-[rgba(250,245,240,0.3)] group-active:scale-95'
-                            : 'bg-[rgba(250,245,240,0.08)] text-[rgba(250,245,240,0.3)] cursor-not-allowed',
-                      )}
-                    >
-                      {pill.label}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-
-          {/* ── Cart button ── */}
-          <button
-            onClick={handleAddToCart}
-            disabled={isLoading || !inStock}
-            className={cn(
-              'flex items-center justify-center gap-2 px-5 py-[14px] font-sans text-[14px] font-medium transition-all duration-200',
-              !hasPills && 'rounded-2xl shadow-xl',
-              inStock
-                ? 'bg-[#2d2d2d] text-[#faf5f0] active:scale-[0.97]'
-                : 'cursor-not-allowed bg-[#e8e4de] text-[#b0a99e]',
-              isLoading && 'opacity-70',
-            )}
+        {/* ── Vertical pill column (narrow, right-aligned) ── */}
+        {hasPills && (
+          <div
+            className="flex flex-col items-center gap-1 overflow-y-auto py-2 scrollbar-hide"
+            style={{
+              backgroundColor: '#3d3d3d',
+              width: pillColWidth,
+              maxHeight: 260,
+              borderRadius: '16px 16px 0 0',
+            }}
           >
-            <ShoppingBag className="h-[18px] w-[18px]" strokeWidth={1.5} />
-            <span className="whitespace-nowrap">
-              {inStock ? `${formatPrice(price)} ₽` : 'Нет'}
-            </span>
-          </button>
-        </div>
+            {pills.map((pill) => {
+              const isActive = pill.id === selectedVariantId
+              return (
+                <button
+                  key={pill.optionId}
+                  onClick={() => onSelectVariant(pill.id)}
+                  disabled={!pill.available}
+                  className="group flex h-[44px] w-[44px] shrink-0 items-center justify-center"
+                >
+                  <span
+                    className={cn(
+                      'flex h-[40px] w-[40px] items-center justify-center rounded-full font-sans text-[12px] font-semibold transition-all duration-150',
+                      isActive
+                        ? 'bg-[#faf5f0] text-[#2d2d2d]'
+                        : pill.available
+                          ? 'bg-[rgba(250,245,240,0.15)] text-[#faf5f0] group-active:bg-[rgba(250,245,240,0.3)] group-active:scale-95'
+                          : 'bg-[rgba(250,245,240,0.08)] text-[rgba(250,245,240,0.3)] cursor-not-allowed',
+                    )}
+                  >
+                    {pill.label}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {/* ── Cart button (wider, extends left) ── */}
+        <button
+          onClick={handleAddToCart}
+          disabled={isLoading || !inStock}
+          className={cn(
+            'flex items-center gap-2 font-sans text-[14px] font-medium shadow-xl transition-all duration-200',
+            inStock
+              ? 'bg-[#2d2d2d] text-[#faf5f0] active:scale-[0.97]'
+              : 'cursor-not-allowed bg-[#e8e4de] text-[#b0a99e]',
+            isLoading && 'opacity-70',
+          )}
+          style={{
+            padding: '12px 16px',
+            // Rounded outer corners, straight where it meets pills column
+            borderRadius: hasPills
+              ? '16px 0 16px 16px' // TL, TR(joins pills), BR, BL
+              : '16px',
+          }}
+        >
+          <ShoppingBag className="h-[18px] w-[18px]" strokeWidth={1.5} />
+          <span className="whitespace-nowrap">
+            {inStock ? `${formatPrice(price)} ₽` : 'Нет'}
+          </span>
+        </button>
       </div>
     </div>
   )

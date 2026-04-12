@@ -94,14 +94,13 @@ export function ProductDetailClient({ product }: Props) {
     [variantTypes],
   )
 
-  // Build pills for FloatingCartL — one per UNIQUE option from visible types.
+  // Build pills for FloatingCartL — one per UNIQUE label from visible types.
   // E.g. if variants are [Large+Black, Large+White, Medium+Black, Medium+White]
-  // we show only [L, M] — deduplicated by option id.
-  // Each pill maps to the first variant that contains that option.
+  // we show only [S, M, L, XL] — deduplicated by compact label, sorted small→large.
   const pills = useMemo<VariantPill[]>(() => {
     if (!hasVariants || visibleTypeIds.size === 0) return []
 
-    const seen = new Set<number>()
+    const seenLabels = new Set<string>()
     const result: VariantPill[] = []
 
     for (const variant of variants) {
@@ -116,12 +115,13 @@ export function ProductDetailClient({ product }: Props) {
 
         // Skip if this option belongs to a hidden type (color) or unknown type
         if (hiddenTypeIds.has(optTypeId as number)) continue
-        // If we can't determine the type but have visible types, accept it
-        // (covers edge case where variantType is unpopulated number not in either set)
         if (optTypeId && !visibleTypeIds.has(optTypeId as number) && hiddenTypeIds.size > 0) continue
 
-        if (seen.has(opt.id)) continue
-        seen.add(opt.id)
+        const label = compactLabel(opt.label, displayType)
+
+        // Deduplicate by label (e.g. two "L" options with different IDs → show one)
+        if (seenLabels.has(label)) continue
+        seenLabels.add(label)
 
         const available = variants.some((v) => {
           const vOpts = (v.options || []).filter(
@@ -133,11 +133,22 @@ export function ProductDetailClient({ product }: Props) {
         result.push({
           id: variant.id,
           optionId: opt.id,
-          label: compactLabel(opt.label, displayType),
+          label,
           available,
         })
       }
     }
+
+    // Sort: sizes S→M→L→XL, quantities numerically ascending
+    const sizeOrder: Record<string, number> = { XS: 0, S: 1, M: 2, L: 3, XL: 4, XXL: 5 }
+    result.sort((a, b) => {
+      const aNum = parseFloat(a.label)
+      const bNum = parseFloat(b.label)
+      if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum
+      const aOrder = sizeOrder[a.label.toUpperCase()] ?? 99
+      const bOrder = sizeOrder[b.label.toUpperCase()] ?? 99
+      return aOrder - bOrder
+    })
 
     return result
   }, [hasVariants, variants, visibleTypeIds, hiddenTypeIds, displayType])
