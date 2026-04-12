@@ -137,7 +137,7 @@ export function CartPage() {
 
             <ul className="divide-y divide-border">
               {cartItems.map((item) => (
-                <li key={item.productId} className="py-6 first:pt-0">
+                <li key={item.productId} data-testid={`cart-item-${item.productId}`} className="py-6 first:pt-0">
                   <div className="flex gap-4 md:gap-6">
                     <Link href={`/products/${item.slug}`} className="shrink-0">
                       <div className="relative w-[100px] h-[100px] md:w-[120px] md:h-[120px] rounded-xl overflow-hidden bg-secondary">

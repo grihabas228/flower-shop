@@ -121,7 +121,10 @@ function BottomNavInner() {
                 <span className="relative">
                   <Icon className="h-[22px] w-[22px]" strokeWidth={active ? 1.8 : 1.5} />
                   {badge > 0 && (
-                    <span className="absolute -right-2.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e8b4b8] px-1 text-[9px] font-semibold text-white">
+                    <span
+                      data-testid={item.hasBadge ? 'cart-badge' : item.hasFavoritesBadge ? 'favorites-badge' : undefined}
+                      className="absolute -right-2.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e8b4b8] px-1 text-[9px] font-semibold text-white"
+                    >
                       {badge > 99 ? '99+' : badge}
                     </span>
                   )}

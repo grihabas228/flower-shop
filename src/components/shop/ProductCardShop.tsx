@@ -137,6 +137,7 @@ export function ProductCardShop({ product, index }: Props) {
 
   return (
     <div
+      data-testid={`product-card-${product.id}`}
       className={cn(
         'group relative flex flex-col overflow-hidden rounded-[16px] bg-[#fffefa]',
         'border border-black/[0.06] shadow-[0_1px_3px_rgba(0,0,0,0.04)]',
@@ -162,6 +163,7 @@ export function ProductCardShop({ product, index }: Props) {
         )}
 
         <button
+          data-testid={`favorite-btn-${product.id}`}
           onClick={handleWishlist}
           className={cn(
             'absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full transition-colors duration-150',
@@ -197,11 +199,11 @@ export function ProductCardShop({ product, index }: Props) {
         {/* BUTTON */}
         <div className="mt-auto px-3 pb-3">
           {!inStock ? (
-            <div className="flex h-[42px] w-full items-center justify-center rounded-xl bg-[#e0dbd5] font-sans cursor-not-allowed">
+            <div data-testid={`out-of-stock-${product.id}`} className="flex h-[42px] w-full items-center justify-center rounded-xl bg-[#e0dbd5] font-sans cursor-not-allowed">
               <span className="text-[14px] font-medium text-[#999]">Нет в наличии</span>
             </div>
           ) : inCart ? (
-            <div className="flex h-[42px] w-full items-center rounded-xl bg-[#2d2d2d] font-sans">
+            <div data-testid={`qty-control-${product.id}`} className="flex h-[42px] w-full items-center rounded-xl bg-[#2d2d2d] font-sans">
               <button
                 onClick={handleDecrement}
                 className="flex h-full w-11 shrink-0 items-center justify-center text-[#faf5f0]/70 hover:text-[#faf5f0]"
@@ -222,6 +224,7 @@ export function ProductCardShop({ product, index }: Props) {
             </div>
           ) : (
             <button
+              data-testid={`add-to-cart-${product.id}`}
               onClick={handleAdd}
               className={cn(
                 'flex h-[42px] w-full items-center justify-between rounded-xl bg-[#2d2d2d] px-4 font-sans',
