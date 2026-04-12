@@ -92,6 +92,13 @@ export function FloatingCartL({
     }
   }, [addItem, productId, selectedVariantId, inStock, isLoading])
 
+  // Debug: remove after verifying pills work
+  useEffect(() => {
+    console.log('[FloatingCartL] pills:', JSON.stringify(pills, null, 2))
+    console.log('[FloatingCartL] selectedVariantId:', selectedVariantId)
+    console.log('[FloatingCartL] price:', price, 'inStock:', inStock)
+  }, [pills, selectedVariantId, price, inStock])
+
   const hasPills = pills.length > 1
 
   return (

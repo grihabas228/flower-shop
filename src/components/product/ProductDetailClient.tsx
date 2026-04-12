@@ -1,7 +1,7 @@
 'use client'
 
 import type { Product, Variant, VariantOption, VariantType } from '@/payload-types'
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { ProductInfo, compactLabel } from './ProductInfo'
 import { FloatingCartL, type VariantPill } from './FloatingCartL'
 
@@ -77,28 +77,52 @@ export function ProductDetailClient({ product }: Props) {
     return (product.inventory || 0) > 0
   }, [hasVariants, selectedVariant, product.inventory])
 
+  // Set of visible (non-color) variant type IDs for fast lookup.
+  // Handles both populated objects and raw number IDs.
+  const visibleTypeIds = useMemo(
+    () => new Set(visibleVariantTypes.map((t) => t.id)),
+    [visibleVariantTypes],
+  )
+
+  // Set of hidden variant type IDs
+  const hiddenTypeIds = useMemo(
+    () => new Set(
+      variantTypes
+        .filter((t) => HIDDEN_TYPE_NAMES.has(t.name.toLowerCase()))
+        .map((t) => t.id),
+    ),
+    [variantTypes],
+  )
+
   // Build pills for FloatingCartL — one per UNIQUE option from visible types.
   // E.g. if variants are [Large+Black, Large+White, Medium+Black, Medium+White]
   // we show only [L, M] — deduplicated by option id.
   // Each pill maps to the first variant that contains that option.
   const pills = useMemo<VariantPill[]>(() => {
-    if (!hasVariants || visibleVariantTypes.length === 0) return []
+    if (!hasVariants || visibleTypeIds.size === 0) return []
 
     const seen = new Set<number>()
     const result: VariantPill[] = []
 
-    // Collect unique options from visible variant types across all variants
     for (const variant of variants) {
       const variantOpts = (variant.options || []).filter(
         (o): o is VariantOption => typeof o === 'object' && o !== null,
       )
       for (const opt of variantOpts) {
-        const optType = typeof opt.variantType === 'object' ? opt.variantType : null
-        if (!optType || HIDDEN_TYPE_NAMES.has(optType.name.toLowerCase())) continue
+        // Resolve variantType id — works whether populated as object or raw number
+        const optTypeId = typeof opt.variantType === 'object'
+          ? (opt.variantType as VariantType).id
+          : opt.variantType
+
+        // Skip if this option belongs to a hidden type (color) or unknown type
+        if (hiddenTypeIds.has(optTypeId as number)) continue
+        // If we can't determine the type but have visible types, accept it
+        // (covers edge case where variantType is unpopulated number not in either set)
+        if (optTypeId && !visibleTypeIds.has(optTypeId as number) && hiddenTypeIds.size > 0) continue
+
         if (seen.has(opt.id)) continue
         seen.add(opt.id)
 
-        // Check if ANY variant with this option has stock
         const available = variants.some((v) => {
           const vOpts = (v.options || []).filter(
             (o): o is VariantOption => typeof o === 'object' && o !== null,
@@ -107,7 +131,7 @@ export function ProductDetailClient({ product }: Props) {
         })
 
         result.push({
-          id: variant.id, // first variant that has this option
+          id: variant.id,
           optionId: opt.id,
           label: compactLabel(opt.label, displayType),
           available,
@@ -116,7 +140,28 @@ export function ProductDetailClient({ product }: Props) {
     }
 
     return result
-  }, [hasVariants, variants, visibleVariantTypes, displayType])
+  }, [hasVariants, variants, visibleTypeIds, hiddenTypeIds, displayType])
+
+  // Debug: remove after verifying
+  useEffect(() => {
+    console.log('[ProductDetailClient] hasVariants:', hasVariants)
+    console.log('[ProductDetailClient] variants count:', variants.length)
+    console.log('[ProductDetailClient] variantTypes:', variantTypes.map(t => ({ id: t.id, name: t.name })))
+    console.log('[ProductDetailClient] visibleVariantTypes:', visibleVariantTypes.map(t => ({ id: t.id, name: t.name })))
+    console.log('[ProductDetailClient] visibleTypeIds:', [...visibleTypeIds])
+    console.log('[ProductDetailClient] hiddenTypeIds:', [...hiddenTypeIds])
+    console.log('[ProductDetailClient] pills:', pills)
+    if (variants.length > 0) {
+      const firstVariant = variants[0]
+      const opts = (firstVariant.options || []).filter((o): o is VariantOption => typeof o === 'object')
+      console.log('[ProductDetailClient] first variant options:', opts.map(o => ({
+        id: o.id,
+        label: o.label,
+        variantType: o.variantType,
+        variantTypeType: typeof o.variantType,
+      })))
+    }
+  }, [hasVariants, variants, variantTypes, visibleVariantTypes, visibleTypeIds, hiddenTypeIds, pills])
 
   return (
     <>
