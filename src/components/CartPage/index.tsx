@@ -1,11 +1,9 @@
 'use client'
 
-import { useCart } from '@payloadcms/plugin-ecommerce/client/react'
 import Image from 'next/image'
 import Link from 'next/link'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Minus, Plus, X, Gift, ChevronRight, Check, Loader2 } from 'lucide-react'
-import { Product } from '@/payload-types'
 import { AuthModal } from '@/components/AuthModal'
 import { calculateDiscount } from '@/utilities/promo'
 import { useOptimisticCart } from '@/providers/OptimisticCartProvider'
@@ -22,10 +20,10 @@ function formatRub(n: number): string {
 }
 
 export function CartPage() {
-  // Server cart for product details (title, image, variants)
-  const { cart } = useCart()
-  // Optimistic cart for quantities and actions
-  const { getQty, increment, decrement, removeFromCart, clearAllItems, totalItems } = useOptimisticCart()
+  const {
+    cartItems, totalItems, increment, decrement,
+    removeFromCart, clearAllItems,
+  } = useOptimisticCart()
 
   const [promoCode, setPromoCode] = useState('')
   const [promoResult, setPromoResult] = useState<PromoResult | null>(null)
@@ -33,38 +31,16 @@ export function CartPage() {
   const [appliedCode, setAppliedCode] = useState('')
   const [showAuthModal, setShowAuthModal] = useState(false)
 
-  // Server cart not loaded yet — show skeleton, NOT "Корзина пуста"
-  const serverLoading = cart === undefined || cart === null
+  const cartIsEmpty = totalItems === 0 && cartItems.length === 0
 
-  // Build items list: server cart items with optimistic quantities
-  const items = useMemo(() => {
-    if (!cart?.items?.length) return []
-    return cart.items
-      .map((item: any) => {
-        const product = item.product
-        if (typeof product !== 'object' || !product?.slug) return null
-        const pid = product.id as number
-        const qty = getQty(pid)
-        if (qty <= 0) return null // optimistically removed
-        return { ...item, product, optimisticQty: qty }
-      })
-      .filter(Boolean) as any[]
-  }, [cart, getQty])
-
-  // Only show "empty" when we're sure — server loaded AND nothing in optimistic
-  const cartIsEmpty = !serverLoading && totalItems === 0 && items.length === 0
-
-  // Compute subtotal from optimistic quantities
+  // Subtotal from localStorage items (no server dependency)
   const subtotal = useMemo(() => {
     let total = 0
-    for (const item of items) {
-      const variant = item.variant
-      const isVariant = Boolean(variant) && typeof variant === 'object'
-      const price = isVariant ? (variant?.priceInUSD ?? item.product.priceInUSD ?? 0) : (item.product.priceInUSD ?? 0)
-      total += price * item.optimisticQty
+    for (const item of cartItems) {
+      total += item.price * item.qty
     }
     return Math.round(total)
-  }, [items])
+  }, [cartItems])
 
   const discount = useMemo(() => {
     if (!promoResult?.valid || !promoResult.discountType || !promoResult.discountValue) return 0
@@ -84,7 +60,6 @@ export function CartPage() {
   const handleApplyPromo = useCallback(async () => {
     const trimmed = promoCode.trim()
     if (!trimmed) return
-
     setPromoLoading(true)
     try {
       const res = await fetch('/api/promo/validate', {
@@ -107,27 +82,6 @@ export function CartPage() {
   }, [])
 
   const checkoutUrl = appliedCode ? `/checkout?promo=${encodeURIComponent(appliedCode)}` : '/checkout'
-
-  // Skeleton while server cart is loading (prevents "Корзина пуста" flash)
-  if (serverLoading && totalItems > 0) {
-    return (
-      <div className="container py-8 md:py-12">
-        <div className="h-8 w-48 rounded bg-[#f0ebe3] mb-10 animate-pulse" />
-        <div className="space-y-6">
-          {Array.from({ length: Math.min(totalItems, 3) }).map((_, i) => (
-            <div key={i} className="flex gap-4">
-              <div className="w-[100px] h-[100px] rounded-xl bg-[#f0ebe3] animate-pulse shrink-0" />
-              <div className="flex-1 space-y-3">
-                <div className="h-5 w-3/4 rounded bg-[#f0ebe3] animate-pulse" />
-                <div className="h-4 w-1/2 rounded bg-[#f0ebe3] animate-pulse" />
-                <div className="h-9 w-32 rounded-full bg-[#f0ebe3] animate-pulse mt-4" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
 
   if (cartIsEmpty) {
     return (
@@ -166,7 +120,7 @@ export function CartPage() {
         <h1 className="font-serif text-3xl md:text-4xl lg:text-5xl text-foreground mb-10">Корзина</h1>
 
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
-          {/* Left column — Cart items */}
+          {/* Cart items — rendered from localStorage details */}
           <div className="flex-1 lg:basis-[65%]">
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-border">
               <p className="text-sm tracking-wider uppercase text-muted-foreground">
@@ -182,103 +136,84 @@ export function CartPage() {
             </div>
 
             <ul className="divide-y divide-border">
-              {items.map((item: any, i: number) => {
-                const product = item.product as Product
-                const variant = item.variant
-                const pid = product.id as number
-                const qty = item.optimisticQty as number
+              {cartItems.map((item) => (
+                <li key={item.productId} className="py-6 first:pt-0">
+                  <div className="flex gap-4 md:gap-6">
+                    <Link href={`/products/${item.slug}`} className="shrink-0">
+                      <div className="relative w-[100px] h-[100px] md:w-[120px] md:h-[120px] rounded-xl overflow-hidden bg-secondary">
+                        {item.image && (
+                          <Image
+                            alt={item.imageAlt || item.title}
+                            className="object-cover"
+                            fill
+                            sizes="120px"
+                            src={item.image}
+                          />
+                        )}
+                      </div>
+                    </Link>
 
-                const metaImage = product.meta?.image && typeof product.meta?.image === 'object' ? product.meta.image : undefined
-                const firstGalleryImage = typeof product.gallery?.[0]?.image === 'object' ? product.gallery?.[0]?.image : undefined
-                let image = firstGalleryImage || metaImage
-                let price = product.priceInUSD ?? 0
-
-                const isVariant = Boolean(variant) && typeof variant === 'object'
-
-                if (isVariant) {
-                  price = variant?.priceInUSD ?? price
-
-                  const imageVariant = product.gallery?.find((galleryItem: any) => {
-                    if (!galleryItem.variantOption) return false
-                    const variantOptionID = typeof galleryItem.variantOption === 'object' ? galleryItem.variantOption.id : galleryItem.variantOption
-                    return variant?.options?.some((option: any) => (typeof option === 'object' ? option.id : option) === variantOptionID)
-                  })
-                  if (imageVariant && typeof imageVariant.image === 'object') image = imageVariant.image
-                }
-
-                return (
-                  <li key={i} className="py-6 first:pt-0">
-                    <div className="flex gap-4 md:gap-6">
-                      <Link href={`/products/${product.slug}`} className="shrink-0">
-                        <div className="relative w-[100px] h-[100px] md:w-[120px] md:h-[120px] rounded-xl overflow-hidden bg-secondary">
-                          {image?.url && (
-                            <Image alt={image?.alt || product?.title || ''} className="object-cover" fill sizes="120px" src={image.url} />
+                    <div className="flex-1 flex flex-col min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <Link href={`/products/${item.slug}`} className="hover:text-accent transition-colors">
+                            <h3 className="font-serif text-base md:text-lg text-foreground leading-tight truncate">
+                              {item.title}
+                            </h3>
+                          </Link>
+                          {item.variantLabel && (
+                            <p className="text-xs text-muted-foreground mt-1 tracking-wide uppercase">
+                              {item.variantLabel}
+                            </p>
                           )}
-                        </div>
-                      </Link>
-
-                      <div className="flex-1 flex flex-col min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <Link href={`/products/${product.slug}`} className="hover:text-accent transition-colors">
-                              <h3 className="font-serif text-base md:text-lg text-foreground leading-tight truncate">
-                                {product?.title}
-                              </h3>
-                            </Link>
-                            {isVariant && variant && typeof variant === 'object' ? (
-                              <p className="text-xs text-muted-foreground mt-1 tracking-wide uppercase">
-                                {variant.options?.map((option: any) => typeof option === 'object' ? option.label : null).join(' / ')}
-                              </p>
-                            ) : null}
-                            <div className="flex items-center gap-1.5 mt-2">
-                              <Gift className="w-3.5 h-3.5 text-accent" />
-                              <span className="text-xs text-accent font-medium">
-                                +{Math.round(price * qty * 0.05)} бонусов
-                              </span>
-                            </div>
+                          <div className="flex items-center gap-1.5 mt-2">
+                            <Gift className="w-3.5 h-3.5 text-accent" />
+                            <span className="text-xs text-accent font-medium">
+                              +{Math.round(item.price * item.qty * 0.05)} бонусов
+                            </span>
                           </div>
+                        </div>
 
+                        <button
+                          onClick={() => removeFromCart(item.productId)}
+                          className="p-1.5 text-muted-foreground/40 hover:text-foreground transition-colors shrink-0"
+                          aria-label="Удалить товар"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between mt-auto pt-3">
+                        <div className="flex items-center border border-border rounded-full overflow-hidden">
                           <button
-                            onClick={() => removeFromCart(pid)}
-                            className="p-1.5 text-muted-foreground/40 hover:text-foreground transition-colors shrink-0"
-                            aria-label="Удалить товар"
+                            onClick={() => decrement(item.productId)}
+                            className="w-9 h-9 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                            aria-label="Уменьшить"
                           >
-                            <X className="w-4 h-4" />
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="w-8 text-center text-sm font-medium tabular-nums">{item.qty}</span>
+                          <button
+                            onClick={() => increment(item.productId)}
+                            className="w-9 h-9 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                            aria-label="Увеличить"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
                           </button>
                         </div>
 
-                        <div className="flex items-center justify-between mt-auto pt-3">
-                          <div className="flex items-center border border-border rounded-full overflow-hidden">
-                            <button
-                              onClick={() => decrement(pid)}
-                              className="w-9 h-9 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                              aria-label="Уменьшить"
-                            >
-                              <Minus className="w-3.5 h-3.5" />
-                            </button>
-                            <span className="w-8 text-center text-sm font-medium tabular-nums">{qty}</span>
-                            <button
-                              onClick={() => increment(pid)}
-                              className="w-9 h-9 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                              aria-label="Увеличить"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-
-                          <span className="text-lg md:text-xl font-serif text-foreground">
-                            {formatRub(Math.round(price * qty))}
-                          </span>
-                        </div>
+                        <span className="text-lg md:text-xl font-serif text-foreground">
+                          {formatRub(Math.round(item.price * item.qty))}
+                        </span>
                       </div>
                     </div>
-                  </li>
-                )
-              })}
+                  </div>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* Right column — Sidebar */}
+          {/* Sidebar */}
           <div className="lg:basis-[35%] lg:shrink-0">
             <div className="lg:sticky lg:top-8 space-y-6">
               {/* Promo */}
@@ -326,7 +261,7 @@ export function CartPage() {
                 </p>
               </div>
 
-              {/* Checkout — desktop */}
+              {/* Checkout desktop */}
               <button
                 onClick={handleCheckout}
                 className="hidden lg:block w-full bg-accent text-accent-foreground py-4 rounded-full text-base font-medium tracking-wide hover:bg-accent/90 transition-all hover:shadow-lg"

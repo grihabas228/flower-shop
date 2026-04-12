@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { cn } from '@/utilities/cn'
 import { useDelivery } from '@/providers/DeliveryProvider'
 import { useFavorites } from '@/providers/FavoritesProvider'
-import { useOptimisticCart } from '@/providers/OptimisticCartProvider'
+import { useOptimisticCart, type CartItemDetail } from '@/providers/OptimisticCartProvider'
 
 type VariantOption = {
   id: number
@@ -102,8 +102,20 @@ export function ProductCardShop({ product, index }: Props) {
   const handleAdd = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    addToCart(product.id, defaultVariantId)
-  }, [addToCart, product.id, defaultVariantId])
+    const detail: CartItemDetail = {
+      productId: product.id,
+      title: product.title,
+      slug: product.slug,
+      price: displayPrice,
+      image: mainImage?.url || null,
+      imageAlt: mainImage?.alt || null,
+      variantId: defaultVariantId,
+      variantLabel: hasVariants && variants[0]
+        ? variants[0].options.map((o) => o.label).join(' / ')
+        : undefined,
+    }
+    addToCart(product.id, detail, defaultVariantId)
+  }, [addToCart, product.id, product.title, product.slug, displayPrice, mainImage, defaultVariantId, hasVariants, variants])
 
   const handleIncrement = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
