@@ -244,7 +244,7 @@ export function CartPage() {
                             <div className="flex items-center gap-1.5 mt-2">
                               <Gift className="w-3.5 h-3.5 text-accent" />
                               <span className="text-xs text-accent font-medium">
-                                +{Math.round((price || 0) * 0.05)} бонусов
+                                +{Math.round((price || 0) * (item.quantity || 1) * 0.05)} бонусов
                               </span>
                             </div>
                           </div>
@@ -326,7 +326,7 @@ export function CartPage() {
                     onKeyDown={(e) => { if (e.key === 'Enter') handleApplyPromo() }}
                     placeholder="Введите промокод"
                     disabled={promoLoading || (promoResult?.valid === true)}
-                    className="flex-1 bg-background border border-border rounded-lg px-4 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-colors disabled:opacity-60"
+                    className="min-w-0 flex-1 bg-background border border-border rounded-lg px-3 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-colors disabled:opacity-60"
                   />
                   {promoResult?.valid ? (
                     <button

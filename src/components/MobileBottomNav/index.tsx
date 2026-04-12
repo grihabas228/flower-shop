@@ -11,6 +11,7 @@ import {
   MapPin,
   Phone,
   Clock,
+  ChevronDown,
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useSearchParams, useRouter } from 'next/navigation'
@@ -23,12 +24,15 @@ import { Drawer } from 'vaul'
 import React, { useMemo, useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { MOBILE_SCROLL_ID } from '@/components/MobileScrollContainer'
 
-const menuNavLinks = [
+const catalogCategories = [
   { label: 'Букеты', href: '/shop?category=bukety' },
   { label: 'Розы', href: '/shop?category=rozy' },
   { label: 'Композиции', href: '/shop?category=kompozicii' },
   { label: 'Подарки', href: '/shop?category=podarki' },
   { label: 'Акции', href: '/shop' },
+]
+
+const menuBottomLinks = [
   { label: 'О нас', href: '/about' },
   { label: 'Доставка', href: '/delivery' },
 ]
@@ -192,6 +196,61 @@ export function MobileBottomNav() {
   )
 }
 
+/* ---- Collapsible catalog section ---- */
+
+function CatalogSection({ pathname, onClose }: { pathname: string; onClose: () => void }) {
+  const [open, setOpen] = useState(true)
+
+  return (
+    <nav className="py-3">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between px-6 py-3 font-sans text-[14px] font-medium uppercase tracking-[0.08em] text-[#2d2d2d] transition-colors hover:bg-[#f0ebe3]"
+      >
+        <span>Каталог</span>
+        <ChevronDown
+          className={cn(
+            'h-4 w-4 text-[#8a8a8a] transition-transform duration-200',
+            open && 'rotate-180',
+          )}
+          strokeWidth={1.5}
+        />
+      </button>
+
+      <div
+        className={cn(
+          'overflow-hidden transition-all duration-300',
+          open ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0',
+        )}
+      >
+        {catalogCategories.map((cat) => {
+          const active = pathname + (typeof window !== 'undefined' ? window.location.search : '') === cat.href
+          return (
+            <Link
+              key={cat.href}
+              href={cat.href}
+              onClick={onClose}
+              className={cn(
+                'block px-6 py-2 pl-10 font-sans text-[13px] text-[#5a5a5a] transition-colors hover:bg-[#f0ebe3] hover:text-[#2d2d2d]',
+                active && 'text-[#2d2d2d] bg-[#f0ebe3]',
+              )}
+            >
+              {cat.label}
+            </Link>
+          )
+        })}
+        <Link
+          href="/shop"
+          onClick={onClose}
+          className="block px-6 py-2.5 pl-10 font-sans text-[12px] font-medium text-[#e8b4b8] transition-colors hover:text-[#d9a0a5]"
+        >
+          Показать все →
+        </Link>
+      </div>
+    </nav>
+  )
+}
+
 /* ---- Drawer rendered from "Меню" button ---- */
 
 function MenuDrawer({
@@ -257,29 +316,24 @@ function MenuDrawer({
             </div>
           </div>
 
-          {/* Nav links */}
-          <nav className="py-4">
-            <ul>
-              {menuNavLinks.map((link) => {
-                const active =
-                  link.href !== '/' ? pathname.startsWith(link.href) : pathname === link.href
+          {/* Catalog with collapsible categories */}
+          <CatalogSection pathname={pathname} onClose={handleClose} />
 
-                return (
-                  <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      onClick={handleClose}
-                      className={cn(
-                        'block px-6 py-3 font-sans text-[14px] uppercase tracking-[0.08em] text-[#5a5a5a] transition-colors hover:bg-[#f0ebe3] hover:text-[#2d2d2d]',
-                        active && 'bg-[#f0ebe3] text-[#2d2d2d]',
-                      )}
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
+          {/* Bottom links */}
+          <nav className="border-t border-[#e8e4de] py-2">
+            {menuBottomLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={handleClose}
+                className={cn(
+                  'block px-6 py-2.5 font-sans text-[13px] text-[#8a8a8a] transition-colors hover:bg-[#f0ebe3] hover:text-[#2d2d2d]',
+                  pathname.startsWith(link.href) && 'text-[#2d2d2d]',
+                )}
+              >
+                {link.label}
+              </Link>
+            ))}
           </nav>
 
           {/* Account */}

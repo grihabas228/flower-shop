@@ -156,12 +156,25 @@ export function ProductCardShop({ product, deliveryTime, bonusPoints }: Props) {
     return { mainImage: main, hoverImage: hover }
   }, [product.gallery, product.meta, hasVariants, selectedVariant])
 
-  // Compact labels for the switcher
-  const compactLabels = useMemo(() => {
-    return variants.map((v) => {
-      const fullLabel = v.options.map((o) => o.label).join(', ')
-      return compactLabel(fullLabel, displayType)
+  // Compact labels for the switcher — deduplicated and sorted
+  const { uniqueLabels, labelToVariantIndex } = useMemo(() => {
+    const sizeOrder: Record<string, number> = { XS: 0, S: 1, M: 2, L: 3, XL: 4, XXL: 5 }
+    const seen = new Map<string, number>() // label → first variant index
+    for (let i = 0; i < variants.length; i++) {
+      const fullLabel = variants[i]!.options.map((o) => o.label).join(', ')
+      const label = compactLabel(fullLabel, displayType)
+      if (!seen.has(label)) seen.set(label, i)
+    }
+    const entries = [...seen.entries()].sort((a, b) => {
+      const aNum = parseFloat(a[0])
+      const bNum = parseFloat(b[0])
+      if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum
+      return (sizeOrder[a[0].toUpperCase()] ?? 99) - (sizeOrder[b[0].toUpperCase()] ?? 99)
     })
+    return {
+      uniqueLabels: entries.map(([label]) => label),
+      labelToVariantIndex: new Map(entries),
+    }
   }, [variants, displayType])
 
   const computedBonus = bonusPoints ?? Math.round(currentPrice * 0.05)
@@ -274,22 +287,25 @@ export function ProductCardShop({ product, deliveryTime, bonusPoints }: Props) {
 
         {/* Variants — fixed zone: always reserves space */}
         <div className="min-h-[32px] mb-2.5">
-          {hasVariants && compactLabels.length > 1 && (
+          {hasVariants && uniqueLabels.length > 1 && (
             <div className="flex items-center gap-1 overflow-hidden">
-              {compactLabels.map((label, i) => (
-                <button
-                  key={variants[i]!.id}
-                  onClick={(e) => handleVariantClick(e, i)}
-                  className={cn(
-                    'shrink-0 cursor-pointer rounded-full px-2.5 py-1 font-sans text-[12px] font-medium tabular-nums transition-all duration-200',
-                    i === selectedVariantIndex
-                      ? 'bg-[#2d2d2d] text-[#faf5f0]'
-                      : 'border border-[#e0dbd4] text-[#5a5a5a] hover:border-[#c8c3bb]',
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
+              {uniqueLabels.map((label) => {
+                const variantIdx = labelToVariantIndex.get(label)!
+                return (
+                  <button
+                    key={label}
+                    onClick={(e) => handleVariantClick(e, variantIdx)}
+                    className={cn(
+                      'shrink-0 cursor-pointer rounded-full px-2.5 py-1 font-sans text-[12px] font-medium tabular-nums transition-all duration-200',
+                      variantIdx === selectedVariantIndex
+                        ? 'bg-[#2d2d2d] text-[#faf5f0]'
+                        : 'border border-[#e0dbd4] text-[#5a5a5a] hover:border-[#c8c3bb]',
+                    )}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>
