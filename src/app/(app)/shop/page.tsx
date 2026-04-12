@@ -98,10 +98,7 @@ export default async function ShopPage({ searchParams }: Props) {
 
   if (searchValue) {
     whereConditions.push({
-      or: [
-        { title: { like: searchValue } },
-        { description: { like: searchValue } },
-      ],
+      title: { like: searchValue },
     })
   }
 
