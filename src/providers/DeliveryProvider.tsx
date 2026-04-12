@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { setDeliveryCookie, type DeliveryCookieData } from '@/utilities/cartCookie'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -15,24 +16,16 @@ export type DeliveryZoneSnapshot = {
   availableIntervals: DeliveryInterval[]
   freeFrom: number | null
   estimatedTime: string | null
-  /** Original address string the user picked (for display / re-population). */
   address: string
 }
 
 type DeliveryContextValue = {
-  /** Current detected zone, or null if no address has been selected. */
   zone: DeliveryZoneSnapshot | null
-  /** Estimated delivery time string for the detected zone, or default fallback. */
   estimatedTime: string
-  /** Whether an address has been selected (zone may still be null if unavailable). */
   hasAddress: boolean
-  /** Set the detected zone (called from HeroSection / CheckoutPage). */
   setZone: (zone: DeliveryZoneSnapshot | null) => void
-  /** Mark the address as unavailable (selected but no zone matches). */
   markUnavailable: (address: string) => void
-  /** Whether the last address was unavailable. */
   unavailable: boolean
-  /** Clear all delivery state. */
   clear: () => void
 }
 
@@ -47,9 +40,30 @@ const DeliveryContext = createContext<DeliveryContextValue | null>(null)
 
 // ─── Provider ────────────────────────────────────────────────────────────────
 
-export const DeliveryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Read localStorage SYNCHRONOUSLY in initializer — no flash
+type ProviderProps = {
+  children: React.ReactNode
+  /** Initial delivery data from server cookie — enables flash-free SSR */
+  initialDelivery?: DeliveryCookieData
+}
+
+export const DeliveryProvider: React.FC<ProviderProps> = ({ children, initialDelivery }) => {
+  // Init: server cookie → localStorage → null
   const [zone, setZoneState] = useState<DeliveryZoneSnapshot | null>(() => {
+    // If server passed initial data, reconstruct zone from it
+    if (initialDelivery) {
+      return {
+        id: 0,
+        zoneType: initialDelivery.zoneType,
+        price3h: initialDelivery.price3h,
+        price1h: null,
+        priceExact: null,
+        availableIntervals: ['3h'] as DeliveryInterval[],
+        freeFrom: null,
+        estimatedTime: initialDelivery.estimatedTime,
+        address: initialDelivery.address,
+      }
+    }
+    // Fallback: localStorage
     if (typeof window === 'undefined') return null
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY)
@@ -58,6 +72,7 @@ export const DeliveryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return parsed.zone ?? null
     } catch { return null }
   })
+
   const [unavailable, setUnavailable] = useState(() => {
     if (typeof window === 'undefined') return false
     try {
@@ -68,7 +83,7 @@ export const DeliveryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } catch { return false }
   })
 
-  // Persist to localStorage whenever zone changes
+  // Persist to localStorage + cookie whenever zone changes
   useEffect(() => {
     if (typeof window === 'undefined') return
     try {
@@ -77,8 +92,18 @@ export const DeliveryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       } else {
         window.localStorage.removeItem(STORAGE_KEY)
       }
-    } catch {
-      // ignore quota / privacy mode errors
+    } catch {}
+
+    // Update cookie for SSR
+    if (zone) {
+      setDeliveryCookie({
+        address: zone.address,
+        estimatedTime: zone.estimatedTime,
+        zoneType: zone.zoneType,
+        price3h: zone.price3h,
+      })
+    } else {
+      setDeliveryCookie(null)
     }
   }, [zone, unavailable])
 
@@ -118,8 +143,6 @@ export const DeliveryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 export function useDelivery(): DeliveryContextValue {
   const ctx = useContext(DeliveryContext)
   if (!ctx) {
-    // Safe fallback when used outside provider — return neutral defaults so
-    // components don't crash if they're rendered in isolation (e.g. tests).
     return {
       zone: null,
       estimatedTime: DEFAULT_DELIVERY_TIME,

@@ -8,10 +8,13 @@ import { SonnerProvider } from '@/providers/Sonner'
 import { DeliveryProvider } from '@/providers/DeliveryProvider'
 import { FavoritesProvider } from '@/providers/FavoritesProvider'
 import { OptimisticCartProvider } from '@/providers/OptimisticCartProvider'
+import type { DeliveryCookieData } from '@/utilities/cartCookie'
 
 export const Providers: React.FC<{
   children: React.ReactNode
-}> = ({ children }) => {
+  initialCart?: [number, number][] | null
+  initialDelivery?: DeliveryCookieData
+}> = ({ children, initialCart, initialDelivery }) => {
   return (
     <ThemeProvider>
       <AuthProvider>
@@ -38,8 +41,8 @@ export const Providers: React.FC<{
             }}
             paymentMethods={[]}
           >
-            <OptimisticCartProvider>
-              <DeliveryProvider>
+            <OptimisticCartProvider initialCart={initialCart}>
+              <DeliveryProvider initialDelivery={initialDelivery}>
                 <FavoritesProvider>{children}</FavoritesProvider>
               </DeliveryProvider>
             </OptimisticCartProvider>

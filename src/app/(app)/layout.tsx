@@ -11,6 +11,8 @@ import { LivePreviewListener } from '@/components/LivePreviewListener'
 import { Providers } from '@/providers'
 import { InitTheme } from '@/providers/Theme/InitTheme'
 import { Playfair_Display, Inter } from 'next/font/google'
+import { cookies } from 'next/headers'
+import { CART_COOKIE_NAME, DELIVERY_COOKIE_NAME, parseCartCookie, parseDeliveryCookie } from '@/utilities/cartCookie'
 import React from 'react'
 import './globals.css'
 
@@ -27,6 +29,16 @@ const inter = Inter({
 })
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
+  // Read cookies on server — SSR renders correct initial state (no flash)
+  const cookieStore = await cookies()
+  const cartCookieVal = cookieStore.get(CART_COOKIE_NAME)?.value
+  const deliveryCookieVal = cookieStore.get(DELIVERY_COOKIE_NAME)?.value
+
+  const initialCart = cartCookieVal
+    ? [...parseCartCookie(cartCookieVal).entries()] as [number, number][]
+    : null
+  const initialDelivery = parseDeliveryCookie(deliveryCookieVal)
+
   return (
     <html
       className={[playfair.variable, inter.variable].filter(Boolean).join(' ')}
@@ -40,7 +52,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <link href="/favicon.svg" rel="icon" type="image/svg+xml" />
       </head>
       <body>
-        <Providers>
+        <Providers initialCart={initialCart} initialDelivery={initialDelivery}>
           <AdminBar />
           <LivePreviewListener />
 

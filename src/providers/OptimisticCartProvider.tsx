@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useCart } from '@payloadcms/plugin-ecommerce/client/react'
 import { toast } from 'sonner'
+import { setCartCookie, clearCartCookie } from '@/utilities/cartCookie'
 
 // ─── localStorage persistence ────────────────────────────────────────────────
 
@@ -27,24 +28,22 @@ function writeSnapshot(map: Map<number, number>) {
   } catch {}
 }
 
+/** Write to both localStorage and cookie simultaneously */
+function persistAll(map: Map<number, number>) {
+  writeSnapshot(map)
+  if (typeof document !== 'undefined') setCartCookie(map)
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type OptimisticCartContextType = {
-  /** Get optimistic quantity for a product */
   getQty: (productId: number) => number
-  /** Add product — instant UI, server in background */
   addToCart: (productId: number, variantId?: number) => void
-  /** Increment quantity — instant */
   increment: (productId: number) => void
-  /** Decrement quantity — instant, removes at 0 */
   decrement: (productId: number) => void
-  /** Remove product entirely — instant */
   removeFromCart: (productId: number) => void
-  /** Clear all items — instant */
   clearAllItems: () => void
-  /** Total item count (sum of all quantities) — instant */
   totalItems: number
-  /** Payload server cart (for pages that need product details) */
   serverCart: any
 }
 
@@ -63,7 +62,7 @@ export function useOptimisticCart() {
   return useContext(OptimisticCartContext)
 }
 
-// ─── Helper: update optimistic + localStorage in one call ────────────────────
+// ─── Helper: update optimistic + persist to localStorage + cookie ────────────
 
 function setOptimisticAndPersist(
   setter: React.Dispatch<React.SetStateAction<Map<number, number>>>,
@@ -72,15 +71,13 @@ function setOptimisticAndPersist(
 ) {
   setter((prev) => {
     const next = updater(prev)
-    // Write localStorage synchronously in the same call stack
-    // We'll merge with localCache and write
     localCacheSetter((lc) => {
       const merged = new Map(lc)
       for (const [pid, qty] of next) {
         if (qty > 0) merged.set(pid, qty)
         else merged.delete(pid)
       }
-      writeSnapshot(merged)
+      persistAll(merged)
       return merged
     })
     return next
@@ -89,16 +86,24 @@ function setOptimisticAndPersist(
 
 // ─── Provider ────────────────────────────────────────────────────────────────
 
-export function OptimisticCartProvider({ children }: { children: React.ReactNode }) {
+type ProviderProps = {
+  children: React.ReactNode
+  /** Initial cart from server cookie — enables flash-free SSR */
+  initialCart?: [number, number][] | null
+}
+
+export function OptimisticCartProvider({ children, initialCart }: ProviderProps) {
   const { addItem, cart, incrementItem, decrementItem, removeItem, clearCart } = useCart()
 
-  const [localCache, setLocalCache] = useState<Map<number, number>>(() => readSnapshot())
+  // Init: server cookie → localStorage → empty
+  const [localCache, setLocalCache] = useState<Map<number, number>>(() => {
+    if (initialCart && initialCart.length > 0) return new Map(initialCart)
+    return readSnapshot()
+  })
   const [optimistic, setOptimistic] = useState<Map<number, number>>(new Map())
 
   const pendingAdds = useRef<Set<number>>(new Set())
   const removeQueue = useRef<Set<number>>(new Set())
-
-  // ── Helpers ──
 
   const findCartItem = useCallback((productId: number) => {
     if (!cart?.items?.length) return null
@@ -120,16 +125,13 @@ export function OptimisticCartProvider({ children }: { children: React.ReactNode
     return m
   }, [cart])
 
-  // ── Get quantity: optimistic > server > localStorage cache ──
-
   const getQty = useCallback((productId: number): number => {
     if (optimistic.has(productId)) return optimistic.get(productId)!
     if (serverMap.has(productId)) return serverMap.get(productId)!
     return localCache.get(productId) || 0
   }, [optimistic, serverMap, localCache])
 
-  // ── Sync localStorage when server data arrives ──
-
+  // Sync localStorage + cookie when server data arrives
   useEffect(() => {
     if (serverMap.size === 0) return
     setLocalCache((prev) => {
@@ -140,13 +142,12 @@ export function OptimisticCartProvider({ children }: { children: React.ReactNode
         else merged.delete(pid)
       }
       for (const [pid, qty] of merged) { if (qty <= 0) merged.delete(pid) }
-      writeSnapshot(merged)
+      persistAll(merged)
       return merged
     })
   }, [serverMap]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Sync: clear optimistic when server catches up ──
-
+  // Clear optimistic when server catches up
   useEffect(() => {
     if (optimistic.size === 0 && removeQueue.current.size === 0) return
 
@@ -206,7 +207,6 @@ export function OptimisticCartProvider({ children }: { children: React.ReactNode
     setOptimisticAndPersist(setOptimistic, setLocalCache, (prev) =>
       new Map(prev).set(productId, currentQty + 1),
     )
-
     const item = findCartItem(productId)
     if (item?.id) {
       incrementItem(item.id).catch(() => {
@@ -219,12 +219,10 @@ export function OptimisticCartProvider({ children }: { children: React.ReactNode
 
   const decrement = useCallback((productId: number) => {
     const currentQty = getQty(productId)
-
     if (currentQty <= 1) {
       setOptimisticAndPersist(setOptimistic, setLocalCache, (prev) =>
         new Map(prev).set(productId, 0),
       )
-
       if (pendingAdds.current.has(productId)) {
         removeQueue.current.add(productId)
       } else {
@@ -239,7 +237,6 @@ export function OptimisticCartProvider({ children }: { children: React.ReactNode
       setOptimisticAndPersist(setOptimistic, setLocalCache, (prev) =>
         new Map(prev).set(productId, currentQty - 1),
       )
-
       const item = findCartItem(productId)
       if (item?.id) decrementItem(item.id).catch(() => {
         setOptimisticAndPersist(setOptimistic, setLocalCache, (prev) => {
@@ -253,7 +250,6 @@ export function OptimisticCartProvider({ children }: { children: React.ReactNode
     setOptimisticAndPersist(setOptimistic, setLocalCache, (prev) =>
       new Map(prev).set(productId, 0),
     )
-
     if (pendingAdds.current.has(productId)) {
       removeQueue.current.add(productId)
     } else {
@@ -265,13 +261,12 @@ export function OptimisticCartProvider({ children }: { children: React.ReactNode
   const clearAllItems = useCallback(() => {
     setOptimistic(new Map())
     setLocalCache(new Map())
-    writeSnapshot(new Map())
+    persistAll(new Map())
+    if (typeof document !== 'undefined') clearCartCookie()
     pendingAdds.current.clear()
     removeQueue.current.clear()
     clearCart().catch(() => {})
   }, [clearCart])
-
-  // ── Total items ──
 
   const totalItems = useMemo(() => {
     const merged = new Map(localCache)
