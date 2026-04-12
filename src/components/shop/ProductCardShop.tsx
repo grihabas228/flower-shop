@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
-import { Heart, ShoppingBag, Clock, Minus, Plus } from 'lucide-react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { Heart, ShoppingBag, Clock } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCart } from '@payloadcms/plugin-ecommerce/client/react'
@@ -63,8 +63,14 @@ export function ProductCardShop({ product }: Props) {
   const { isFavorite, toggleFavorite } = useFavorites()
   const isWishlisted = isFavorite(product.id)
 
-  // Optimistic local quantity — only used while cart syncs
+  // Hydration guard — don't show cart state until client is ready
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
+  // Optimistic local quantity
   const [optimisticQty, setOptimisticQty] = useState<number | null>(null)
+  // Prevent rapid conflicting operations (add then immediate remove)
+  const addInFlightRef = useRef(false)
 
   const variants = product.variants || []
   const hasVariants = product.enableVariants && variants.length > 0
@@ -103,23 +109,30 @@ export function ProductCardShop({ product }: Props) {
 
   const serverQty = cartItem?.quantity || 0
   const qty = optimisticQty ?? serverQty
-
-  // Sync: when server catches up, clear optimistic
-  if (optimisticQty !== null && serverQty === optimisticQty) {
-    setOptimisticQty(null)
-  }
-
   const inCart = qty > 0
 
-  // Handlers — optimistic, fire-and-forget
+  // Sync: when server catches up, clear optimistic state
+  useEffect(() => {
+    if (optimisticQty !== null && serverQty === optimisticQty) {
+      setOptimisticQty(null)
+    }
+    // Clear addInFlight once item appears in cart
+    if (addInFlightRef.current && cartItem?.id) {
+      addInFlightRef.current = false
+    }
+  }, [serverQty, optimisticQty, cartItem?.id])
+
   const handleAddToCart = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault()
       e.stopPropagation()
+      if (addInFlightRef.current) return
+      addInFlightRef.current = true
       setOptimisticQty(1)
       addItem({ product: product.id, variant: defaultVariant?.id ?? undefined })
         .catch(() => {
           setOptimisticQty(null)
+          addInFlightRef.current = false
           toast.error('Ошибка при добавлении')
         })
     },
@@ -130,10 +143,9 @@ export function ProductCardShop({ product }: Props) {
     (e: React.MouseEvent) => {
       e.preventDefault()
       e.stopPropagation()
+      if (!cartItem?.id) return // wait for server if add still in flight
       setOptimisticQty(qty + 1)
-      if (cartItem?.id) {
-        incrementItem(cartItem.id).catch(() => setOptimisticQty(null))
-      }
+      incrementItem(cartItem.id).catch(() => setOptimisticQty(null))
     },
     [incrementItem, cartItem, qty],
   )
@@ -142,16 +154,13 @@ export function ProductCardShop({ product }: Props) {
     (e: React.MouseEvent) => {
       e.preventDefault()
       e.stopPropagation()
+      if (!cartItem?.id) return // add still in flight, ignore
       if (qty <= 1) {
         setOptimisticQty(0)
-        if (cartItem?.id) {
-          removeItem(cartItem.id).catch(() => setOptimisticQty(null))
-        }
+        removeItem(cartItem.id).catch(() => setOptimisticQty(null))
       } else {
         setOptimisticQty(qty - 1)
-        if (cartItem?.id) {
-          decrementItem(cartItem.id).catch(() => setOptimisticQty(null))
-        }
+        decrementItem(cartItem.id).catch(() => setOptimisticQty(null))
       }
     },
     [decrementItem, removeItem, cartItem, qty],
@@ -166,6 +175,9 @@ export function ProductCardShop({ product }: Props) {
     [toggleFavorite, product.id],
   )
 
+  // Determine button state: before mount always show price to avoid hydration flash
+  const showQtyControl = mounted && inCart
+
   return (
     <div
       className={cn(
@@ -175,7 +187,7 @@ export function ProductCardShop({ product }: Props) {
         'hover:-translate-y-[2px] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)]',
       )}
     >
-      {/* PHOTO — no active/tap animations */}
+      {/* PHOTO */}
       <Link
         href={`/products/${product.slug}`}
         className="relative aspect-[3/4] w-full bg-[#f5f0ea]"
@@ -234,10 +246,10 @@ export function ProductCardShop({ product }: Props) {
           </span>
         </div>
 
-        {/* PRICE BUTTON / QUANTITY CONTROL — only 2 states, instant transitions */}
+        {/* BUTTON — 2 states only, no flash on hydration */}
         <div className="mt-auto px-3 pb-3">
-          {inCart ? (
-            <div className="flex h-[42px] w-full items-center rounded-xl bg-[#2d2d2d] font-sans transition-opacity duration-150">
+          {showQtyControl ? (
+            <div className="flex h-[42px] w-full items-center rounded-xl bg-[#2d2d2d] font-sans">
               <button
                 onClick={handleDecrement}
                 className="flex h-full w-11 shrink-0 items-center justify-center text-[#faf5f0]/70 hover:text-[#faf5f0]"
