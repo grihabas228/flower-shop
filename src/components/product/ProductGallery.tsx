@@ -182,6 +182,16 @@ export function ProductGallery({ gallery }: Props) {
                   />
                 </button>
               ))}
+
+              {/* Bouncing hint arrow — swipe for more photos */}
+              {gallery.length > 2 && (
+                <div className="flex shrink-0 items-center justify-center pt-0.5">
+                  <ChevronDown
+                    className="h-4 w-4 animate-[gentle-bounce_1.5s_ease-in-out_infinite] text-[#999]"
+                    strokeWidth={1.5}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>

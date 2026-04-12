@@ -270,6 +270,12 @@ a[aria-disabled="true"] {
   display: none;
 }
 
+/* Gentle bounce animation for gallery scroll hint arrow */
+@keyframes gentle-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(3px); }
+}
+
 /* Safe-area bottom nav — works in Safari, Chrome, and Telegram WebView.
    Telegram doesn't support env(safe-area-inset-bottom), so we use a
    fallback with max(). The @supports guard avoids breaking older browsers. */

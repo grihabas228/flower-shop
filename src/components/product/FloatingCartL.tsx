@@ -12,7 +12,10 @@ function formatPrice(price: number): string {
 }
 
 export type VariantPill = {
+  /** Variant id (used for add-to-cart and selection) */
   id: number
+  /** Option id within the visible variant type */
+  optionId: number
   label: string
   available: boolean
 }
@@ -113,7 +116,7 @@ export function FloatingCartL({
               const isActive = pill.id === selectedVariantId
               return (
                 <button
-                  key={pill.id}
+                  key={pill.optionId}
                   onClick={() => onSelectVariant(pill.id)}
                   disabled={!pill.available}
                   className={cn(

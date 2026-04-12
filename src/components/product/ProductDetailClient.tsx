@@ -77,37 +77,45 @@ export function ProductDetailClient({ product }: Props) {
     return (product.inventory || 0) > 0
   }, [hasVariants, selectedVariant, product.inventory])
 
-  // Build pills for FloatingCartL — one per variant, using compactLabel
+  // Build pills for FloatingCartL — one per UNIQUE option from visible types.
+  // E.g. if variants are [Large+Black, Large+White, Medium+Black, Medium+White]
+  // we show only [L, M] — deduplicated by option id.
+  // Each pill maps to the first variant that contains that option.
   const pills = useMemo<VariantPill[]>(() => {
     if (!hasVariants || visibleVariantTypes.length === 0) return []
 
-    return variants.map((variant) => {
-      // Get the label from the first visible-type option
+    const seen = new Set<number>()
+    const result: VariantPill[] = []
+
+    // Collect unique options from visible variant types across all variants
+    for (const variant of variants) {
       const variantOpts = (variant.options || []).filter(
         (o): o is VariantOption => typeof o === 'object' && o !== null,
       )
-
-      // Find the option that belongs to a visible type
-      let label = ''
       for (const opt of variantOpts) {
         const optType = typeof opt.variantType === 'object' ? opt.variantType : null
-        if (optType && !HIDDEN_TYPE_NAMES.has(optType.name.toLowerCase())) {
-          label = compactLabel(opt.label, displayType)
-          break
-        }
-      }
+        if (!optType || HIDDEN_TYPE_NAMES.has(optType.name.toLowerCase())) continue
+        if (seen.has(opt.id)) continue
+        seen.add(opt.id)
 
-      if (!label) {
-        // Fallback — use variant title or index
-        label = variant.title || '?'
-      }
+        // Check if ANY variant with this option has stock
+        const available = variants.some((v) => {
+          const vOpts = (v.options || []).filter(
+            (o): o is VariantOption => typeof o === 'object' && o !== null,
+          )
+          return vOpts.some((o) => o.id === opt.id) && (v.inventory || 0) > 0
+        })
 
-      return {
-        id: variant.id,
-        label,
-        available: (variant.inventory || 0) > 0,
+        result.push({
+          id: variant.id, // first variant that has this option
+          optionId: opt.id,
+          label: compactLabel(opt.label, displayType),
+          available,
+        })
       }
-    })
+    }
+
+    return result
   }, [hasVariants, variants, visibleVariantTypes, displayType])
 
   return (
