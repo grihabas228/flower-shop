@@ -8,6 +8,8 @@ type FavoritesContextType = {
   favorites: number[]
   toggleFavorite: (productId: number) => void
   isFavorite: (productId: number) => boolean
+  /** Remove IDs that no longer exist in the database */
+  removeStale: (validIds: number[]) => void
   count: number
 }
 
@@ -15,6 +17,7 @@ const FavoritesContext = createContext<FavoritesContextType>({
   favorites: [],
   toggleFavorite: () => {},
   isFavorite: () => false,
+  removeStale: () => {},
   count: 0,
 })
 
@@ -79,11 +82,22 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
     [favorites],
   )
 
+  const removeStale = useCallback((validIds: number[]) => {
+    setFavorites((prev) => {
+      const validSet = new Set(validIds)
+      const next = prev.filter((id) => validSet.has(id))
+      if (next.length !== prev.length) {
+        writeStorage(next)
+      }
+      return next
+    })
+  }, [])
+
   const count = hydrated ? favorites.length : 0
 
   const value = useMemo(
-    () => ({ favorites, toggleFavorite, isFavorite, count }),
-    [favorites, toggleFavorite, isFavorite, count],
+    () => ({ favorites, toggleFavorite, isFavorite, removeStale, count }),
+    [favorites, toggleFavorite, isFavorite, removeStale, count],
   )
 
   return <FavoritesContext.Provider value={value}>{children}</FavoritesContext.Provider>

@@ -80,7 +80,7 @@ function transformProduct(product: Product): ProductCardData {
 }
 
 export function FavoritesContent() {
-  const { favorites } = useFavorites()
+  const { favorites, removeStale } = useFavorites()
   const [products, setProducts] = useState<ProductCardData[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -109,6 +109,12 @@ export function FavoritesContent() {
         if (!cancelled) {
           const transformed = (data.docs || []).map((p: Product) => transformProduct(p))
           setProducts(transformed)
+
+          // Clean up stale favorite IDs (products deleted from DB)
+          const returnedIds = transformed.map((p: ProductCardData) => p.id)
+          if (returnedIds.length < favorites.length) {
+            removeStale(returnedIds)
+          }
         }
       } catch {
         if (!cancelled) setProducts([])
@@ -121,7 +127,7 @@ export function FavoritesContent() {
     return () => {
       cancelled = true
     }
-  }, [favorites])
+  }, [favorites, removeStale])
 
   if (loading) {
     return (

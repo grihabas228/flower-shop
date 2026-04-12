@@ -116,7 +116,7 @@ export function CartPage() {
 
   return (
     <>
-      <div className="container py-8 md:py-12">
+      <div className="container overflow-x-hidden py-8 md:py-12">
         {/* Breadcrumbs */}
         <nav className="flex items-center gap-2 text-xs tracking-wider uppercase text-muted-foreground mb-8">
           <Link href="/" className="hover:text-foreground transition-colors">
