@@ -48,22 +48,25 @@ const DeliveryContext = createContext<DeliveryContextValue | null>(null)
 // ─── Provider ────────────────────────────────────────────────────────────────
 
 export const DeliveryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [zone, setZoneState] = useState<DeliveryZoneSnapshot | null>(null)
-  const [unavailable, setUnavailable] = useState(false)
-
-  // Hydrate from localStorage on mount (client only)
-  useEffect(() => {
-    if (typeof window === 'undefined') return
+  // Read localStorage SYNCHRONOUSLY in initializer — no flash
+  const [zone, setZoneState] = useState<DeliveryZoneSnapshot | null>(() => {
+    if (typeof window === 'undefined') return null
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY)
-      if (!raw) return
-      const parsed = JSON.parse(raw) as { zone?: DeliveryZoneSnapshot; unavailable?: boolean }
-      if (parsed.zone) setZoneState(parsed.zone)
-      if (parsed.unavailable) setUnavailable(true)
-    } catch {
-      // ignore corrupted storage
-    }
-  }, [])
+      if (!raw) return null
+      const parsed = JSON.parse(raw) as { zone?: DeliveryZoneSnapshot }
+      return parsed.zone ?? null
+    } catch { return null }
+  })
+  const [unavailable, setUnavailable] = useState(() => {
+    if (typeof window === 'undefined') return false
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY)
+      if (!raw) return false
+      const parsed = JSON.parse(raw) as { unavailable?: boolean }
+      return parsed.unavailable ?? false
+    } catch { return false }
+  })
 
   // Persist to localStorage whenever zone changes
   useEffect(() => {

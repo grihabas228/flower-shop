@@ -174,7 +174,7 @@ export function ProductCardShop({ product }: Props) {
         </div>
 
         {/* BUTTON — instant state from OptimisticCartProvider */}
-        <div className="mt-auto px-3 pb-3">
+        <div className="mt-auto px-3 pb-3" suppressHydrationWarning>
           {inCart ? (
             <div className="flex h-[42px] w-full items-center rounded-xl bg-[#2d2d2d] font-sans">
               <button
