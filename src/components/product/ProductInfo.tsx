@@ -5,7 +5,8 @@ import { useCallback, useMemo, useState } from 'react'
 import { useCart } from '@payloadcms/plugin-ecommerce/client/react'
 import { cn } from '@/utilities/cn'
 import { toast } from 'sonner'
-import { Clock, Star, ShoppingBag, ChevronDown, Shield, Truck } from 'lucide-react'
+import { Clock, Star, ShoppingBag, ChevronDown, Shield, Truck, ArrowRight } from 'lucide-react'
+import { useDelivery } from '@/providers/DeliveryProvider'
 
 function formatPrice(price: number): string {
   return new Intl.NumberFormat('ru-RU').format(price)
@@ -72,6 +73,7 @@ type Props = {
 
 export function ProductInfo({ product, selectedVariantId: externalVariantId, onVariantChange }: Props) {
   const { addItem, isLoading } = useCart()
+  const { zone, hasAddress } = useDelivery()
   const [selectedWrapper, setSelectedWrapper] = useState(0)
   const [compositionOpen, setCompositionOpen] = useState(false)
 
@@ -186,15 +188,36 @@ export function ProductInfo({ product, selectedVariantId: externalVariantId, onV
         </span>
       </div>
 
-      {/* Delivery info */}
-      <div className="flex items-center gap-2.5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#b5c7a3]/15">
+      {/* Delivery info — fixed height to prevent layout shifts */}
+      <div className="flex min-h-[52px] items-center gap-2.5">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#b5c7a3]/15">
           <Clock className="h-4 w-4 text-[#7a9968]" strokeWidth={1.5} />
         </div>
-        <div>
-          <p className="font-sans text-[14px] font-medium text-[#2d2d2d]">Доставим за 90 минут</p>
-          <p className="font-sans text-[12px] text-[#8a8a8a]">Бесплатно от 5 000 ₽</p>
-        </div>
+        {hasAddress && zone ? (
+          <div>
+            <p className="font-sans text-[14px] font-medium text-[#2d2d2d]">
+              Доставим за {zone.estimatedTime ?? '120 мин'}
+              {' · '}
+              {(() => {
+                const isFree = zone.freeFrom !== null && zone.freeFrom > 0 && currentPrice >= zone.freeFrom
+                if (isFree) return 'Бесплатно'
+                return `${new Intl.NumberFormat('ru-RU').format(zone.price3h)} ₽`
+              })()}
+            </p>
+            <p className="font-sans text-[12px] text-[#8a8a8a]">
+              {zone.address}
+            </p>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('fleur:open-address-sheet'))}
+            className="flex items-center gap-1 font-sans text-[14px] text-[#e8b4b8] underline decoration-[#e8b4b8]/40 underline-offset-2 transition-colors duration-150 hover:text-[#d9a0a5]"
+          >
+            <span>Укажите адрес для расчёта доставки</span>
+            <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} />
+          </button>
+        )}
       </div>
 
       <div className="h-px bg-[#e8e4de]" />
@@ -203,10 +226,29 @@ export function ProductInfo({ product, selectedVariantId: externalVariantId, onV
       {hasVariants && visibleVariantTypes.length > 0 && (
         <div id="variant-selector-section" className="space-y-5">
           {visibleVariantTypes.map((type) => {
-            const options = type.options?.docs?.filter(
+            const rawOptions = type.options?.docs?.filter(
               (o): o is VariantOption => typeof o === 'object' && o !== null,
             )
-            if (!options?.length) return null
+            if (!rawOptions?.length) return null
+
+            // Deduplicate by compact label and sort (same logic as FloatingCartL pills)
+            const sizeOrder: Record<string, number> = { XS: 0, S: 1, M: 2, L: 3, XL: 4, XXL: 5 }
+            const seenLabels = new Set<string>()
+            const dedupedOptions = rawOptions.filter((option) => {
+              const label = compactLabel(option.label, displayType)
+              if (seenLabels.has(label)) return false
+              seenLabels.add(label)
+              return true
+            }).sort((a, b) => {
+              const aLabel = compactLabel(a.label, displayType)
+              const bLabel = compactLabel(b.label, displayType)
+              const aNum = parseFloat(aLabel)
+              const bNum = parseFloat(bLabel)
+              if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum
+              const aOrder = sizeOrder[aLabel.toUpperCase()] ?? 99
+              const bOrder = sizeOrder[bLabel.toUpperCase()] ?? 99
+              return aOrder - bOrder
+            })
 
             return (
               <div key={type.id}>
@@ -214,7 +256,7 @@ export function ProductInfo({ product, selectedVariantId: externalVariantId, onV
                   {variantLabel}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {options.map((option) => {
+                  {dedupedOptions.map((option) => {
                     const isActive = selectedVariant?.options?.some(
                       (o) => (typeof o === 'object' ? o.id : o) === option.id,
                     )
