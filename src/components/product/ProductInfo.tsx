@@ -1,9 +1,8 @@
 'use client'
 
 import type { Product, Variant, VariantOption, VariantType } from '@/payload-types'
-import { useCallback, useMemo, useState, useRef } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { MOBILE_SCROLL_ID } from '@/components/MobileScrollContainer'
 import { useCart } from '@payloadcms/plugin-ecommerce/client/react'
 import { createUrl } from '@/utilities/createUrl'
 import { cn } from '@/utilities/cn'
@@ -101,17 +100,7 @@ export function ProductInfo({ product }: Props) {
         params.set('variant', String(matchingVariant.id))
       }
 
-      // Save mobile scroll position before navigation — router.replace
-      // can reset MobileScrollContainer scrollTop even with scroll: false
-      const scrollEl = document.getElementById(MOBILE_SCROLL_ID)
-      const savedScroll = scrollEl?.scrollTop ?? 0
-
       router.replace(createUrl(pathname, params), { scroll: false })
-
-      // Restore scroll position after React re-render
-      requestAnimationFrame(() => {
-        if (scrollEl) scrollEl.scrollTop = savedScroll
-      })
     },
     [router, pathname, searchParams, variants, variantTypes],
   )
