@@ -16,7 +16,7 @@ function formatPrice(price: number): string {
  * "size" → abbreviate (Large→L, Medium→M, Small→S)
  * "quantity" → extract leading number ("25 роз"→"25")
  */
-function compactLabel(raw: string, displayType: 'size' | 'quantity'): string {
+export function compactLabel(raw: string, displayType: 'size' | 'quantity'): string {
   const trimmed = raw.trim()
 
   if (displayType === 'quantity') {
@@ -64,9 +64,13 @@ const wrapperColors = [
 
 type Props = {
   product: Product
+  /** Externally-controlled selected variant id (from ProductDetailClient) */
+  selectedVariantId?: number
+  /** Callback when user picks a different variant */
+  onVariantChange?: (variantId: number) => void
 }
 
-export function ProductInfo({ product }: Props) {
+export function ProductInfo({ product, selectedVariantId: externalVariantId, onVariantChange }: Props) {
   const { addItem, isLoading } = useCart()
   const [selectedWrapper, setSelectedWrapper] = useState(0)
   const [compositionOpen, setCompositionOpen] = useState(false)
@@ -81,31 +85,29 @@ export function ProductInfo({ product }: Props) {
 
   // Filter out COLOR variant types — only show size/quantity
   const visibleVariantTypes = useMemo(
-    () =>
-      variantTypes.filter(
-        (t) => !HIDDEN_TYPE_NAMES.has(t.name.toLowerCase()),
-      ),
+    () => variantTypes.filter((t) => !HIDDEN_TYPE_NAMES.has(t.name.toLowerCase())),
     [variantTypes],
   )
 
   const displayType = product.variantDisplayType ?? 'size'
-
-  // Russian label based on variantDisplayType
   const variantLabel = displayType === 'quantity' ? 'Количество' : 'Размер'
 
-  // ── Variant selection via useState (no router navigation) ──
-  const [selectedVariantId, setSelectedVariantId] = useState<number | undefined>(() => {
+  // ── Variant selection ──
+  // Use external state if provided, otherwise local state
+  const [localVariantId, setLocalVariantId] = useState<number | undefined>(() => {
     if (!hasVariants || !variants.length) return undefined
     return variants[0]?.id
   })
 
+  const activeVariantId = externalVariantId ?? localVariantId
+
   const selectedVariant = useMemo<Variant | undefined>(() => {
     if (!hasVariants) return undefined
-    if (selectedVariantId) {
-      return variants.find((v) => v.id === selectedVariantId) || variants[0]
+    if (activeVariantId) {
+      return variants.find((v) => v.id === activeVariantId) || variants[0]
     }
     return variants[0]
-  }, [hasVariants, selectedVariantId, variants])
+  }, [hasVariants, activeVariantId, variants])
 
   // Select option → find matching variant → update state (no navigation)
   const selectOption = useCallback(
@@ -117,10 +119,14 @@ export function ProductInfo({ product }: Props) {
         return variantOpts.some((o) => o.id === optionId)
       })
       if (matchingVariant) {
-        setSelectedVariantId(matchingVariant.id)
+        if (onVariantChange) {
+          onVariantChange(matchingVariant.id)
+        } else {
+          setLocalVariantId(matchingVariant.id)
+        }
       }
     },
-    [variants],
+    [variants, onVariantChange],
   )
 
   // Price logic
@@ -131,14 +137,9 @@ export function ProductInfo({ product }: Props) {
     return product.priceInUSD || 0
   }, [hasVariants, selectedVariant, product.priceInUSD])
 
-  // Simulated old price (15% higher)
-  const oldPrice = useMemo(() => {
-    return Math.round(currentPrice * 1.15)
-  }, [currentPrice])
-
+  const oldPrice = useMemo(() => Math.round(currentPrice * 1.15), [currentPrice])
   const bonusPoints = Math.round(currentPrice * 0.05)
 
-  // Add to cart handler
   const handleAddToCart = useCallback(async () => {
     try {
       await addItem({
@@ -151,7 +152,6 @@ export function ProductInfo({ product }: Props) {
     }
   }, [addItem, product.id, selectedVariant])
 
-  // Stock check
   const inStock = useMemo(() => {
     if (hasVariants && selectedVariant) {
       return (selectedVariant.inventory || 0) > 0
@@ -199,9 +199,9 @@ export function ProductInfo({ product }: Props) {
 
       <div className="h-px bg-[#e8e4de]" />
 
-      {/* Variant selector — only visible (non-color) types */}
+      {/* Variant selector — sentinel for FloatingCartL IntersectionObserver */}
       {hasVariants && visibleVariantTypes.length > 0 && (
-        <div className="space-y-5">
+        <div id="variant-selector-section" className="space-y-5">
           {visibleVariantTypes.map((type) => {
             const options = type.options?.docs?.filter(
               (o): o is VariantOption => typeof o === 'object' && o !== null,
@@ -219,7 +219,6 @@ export function ProductInfo({ product }: Props) {
                       (o) => (typeof o === 'object' ? o.id : o) === option.id,
                     )
 
-                    // Check availability
                     const isAvailable = variants.some((variant) => {
                       const variantOpts = (variant.options || []).filter(
                         (o): o is VariantOption => typeof o === 'object',
@@ -287,7 +286,7 @@ export function ProductInfo({ product }: Props) {
 
       <div className="h-px bg-[#e8e4de]" />
 
-      {/* Add to cart button — id used by FloatingCartButton intersection observer */}
+      {/* Add to cart button */}
       <button
         id="product-add-to-cart"
         onClick={handleAddToCart}
@@ -302,9 +301,7 @@ export function ProductInfo({ product }: Props) {
       >
         <ShoppingBag className="h-5 w-5" strokeWidth={1.5} />
         {inStock ? (
-          <span>
-            В корзину&nbsp;&nbsp;·&nbsp;&nbsp;{formatPrice(currentPrice)}&nbsp;&#8381;
-          </span>
+          <span>В корзину&nbsp;&nbsp;·&nbsp;&nbsp;{formatPrice(currentPrice)}&nbsp;&#8381;</span>
         ) : (
           <span>Нет в наличии</span>
         )}
@@ -329,9 +326,7 @@ export function ProductInfo({ product }: Props) {
             onClick={() => setCompositionOpen(!compositionOpen)}
             className="flex w-full cursor-pointer items-center justify-between py-2"
           >
-            <span className="font-sans text-[14px] font-medium text-[#2d2d2d]">
-              Состав букета
-            </span>
+            <span className="font-sans text-[14px] font-medium text-[#2d2d2d]">Состав букета</span>
             <ChevronDown
               className={cn(
                 'h-5 w-5 text-[#8a8a8a] transition-transform duration-300',
@@ -356,15 +351,12 @@ export function ProductInfo({ product }: Props) {
   )
 }
 
-// Simple rich text extraction for composition section
 function ProductDescriptionText({ description }: { description: any }) {
   if (!description?.root?.children) return null
 
   function extractText(node: any): string {
     if (node.text) return node.text
-    if (node.children) {
-      return node.children.map(extractText).join('')
-    }
+    if (node.children) return node.children.map(extractText).join('')
     return ''
   }
 

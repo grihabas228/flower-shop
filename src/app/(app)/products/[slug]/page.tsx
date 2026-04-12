@@ -1,11 +1,10 @@
 import type { Media, Product } from '@/payload-types'
 
 import { ProductGallery } from '@/components/product/ProductGallery'
-import { ProductInfo } from '@/components/product/ProductInfo'
+import { ProductDetailClient } from '@/components/product/ProductDetailClient'
 import { ProductCardShop } from '@/components/shop/ProductCardShop'
 import { RenderBlocks } from '@/blocks/RenderBlocks'
 import { ProductJsonLd } from '@/components/product/ProductJsonLd'
-import { FloatingCartButton } from '@/components/product/FloatingCartButton'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import { draftMode } from 'next/headers'
@@ -128,11 +127,11 @@ export default async function ProductPage({ params }: Args) {
               </Suspense>
             </div>
 
-            {/* Right: Product info */}
+            {/* Right: Product info + floating L (mobile) */}
             <div className="w-full lg:w-[45%] xl:w-[42%]">
               <div className="lg:sticky lg:top-24">
                 <Suspense fallback={<ProductInfoSkeleton />}>
-                  <ProductInfo product={product} />
+                  <ProductDetailClient product={product} />
                 </Suspense>
               </div>
             </div>
@@ -152,14 +151,7 @@ export default async function ProductPage({ params }: Args) {
         </div>
       </div>
 
-      {/* Mobile floating add-to-cart — appears when inline button scrolls off */}
-      <Suspense fallback={null}>
-        <FloatingCartButton
-          productId={product.id}
-          price={price || 0}
-          inStock={!!hasStock}
-        />
-      </Suspense>
+      {/* FloatingCartL is rendered inside ProductDetailClient */}
     </React.Fragment>
   )
 }
