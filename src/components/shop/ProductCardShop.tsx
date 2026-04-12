@@ -57,7 +57,7 @@ function formatPrice(price: number): string {
 }
 
 export function ProductCardShop({ product }: Props) {
-  const { addToCart, increment, decrement, getQty, isHydrated } = useOptimisticCart()
+  const { addToCart, increment, decrement, getQty } = useOptimisticCart()
   const { estimatedTime, hasAddress } = useDelivery()
   const { isFavorite, toggleFavorite } = useFavorites()
   const isWishlisted = isFavorite(product.id)
@@ -87,9 +87,9 @@ export function ProductCardShop({ product }: Props) {
     return 20 + (seed % 180)
   }, [product.id])
 
-  // Instant from optimistic provider — no server wait
+  // Instant from optimistic provider — localStorage on init, no flash
   const qty = getQty(product.id)
-  const inCart = isHydrated && qty > 0
+  const inCart = qty > 0
 
   const handleAdd = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
