@@ -58,7 +58,7 @@ export function PopularProducts({ products }: Props) {
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4 lg:gap-5">
+      <div className="grid grid-cols-2 gap-1.5 sm:gap-3 lg:grid-cols-4 lg:gap-5">
         {products.map((product) => (
           <ProductCardShop key={product.id} product={product as Parameters<typeof ProductCardShop>[0]['product']} />
         ))}
