@@ -15,13 +15,13 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useSearchParams, useRouter } from 'next/navigation'
-import { useCart } from '@payloadcms/plugin-ecommerce/client/react'
 import { useAuth } from '@/providers/Auth'
 import { useFavorites } from '@/providers/FavoritesProvider'
+import { useOptimisticCart } from '@/providers/OptimisticCartProvider'
 import { AuthModal } from '@/components/AuthModal'
 import { cn } from '@/utilities/cn'
 import { Drawer } from 'vaul'
-import React, { useMemo, useState, useEffect, useRef, useCallback, Suspense } from 'react'
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { MOBILE_SCROLL_ID } from '@/components/MobileScrollContainer'
 
 const catalogCategories = [
@@ -47,9 +47,9 @@ const navItems = [
 function BottomNavInner() {
   const pathname = usePathname()
   const router = useRouter()
-  const { cart } = useCart()
   const { user } = useAuth()
   const { count: favoritesCount } = useFavorites()
+  const { totalItems } = useOptimisticCart()
   const [menuOpen, setMenuOpen] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const savedScrollTop = useRef(0)
@@ -95,10 +95,7 @@ function BottomNavInner() {
     }
   }
 
-  const totalQuantity = useMemo(() => {
-    if (!cart?.items?.length) return 0
-    return cart.items.reduce((qty, item) => (item.quantity || 0) + qty, 0)
-  }, [cart])
+  const totalQuantity = totalItems
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/'
