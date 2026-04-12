@@ -23,11 +23,10 @@ export function ProductGallery({ gallery }: Props) {
   const [thumbOffset, setThumbOffset] = useState(0)
   const visibleThumbs = 5
 
-  // Embla carousel for mobile swipe
+  // Embla carousel for mobile swipe (infinite loop)
   const [emblaRef, emblaApi] = useEmblaCarousel({
-    loop: false,
+    loop: true,
     dragFree: false,
-    containScroll: 'trimSnaps',
     duration: 25,
   })
 
@@ -101,16 +100,23 @@ export function ProductGallery({ gallery }: Props) {
   )
 
   // Mobile thumbnail ref for auto-scrolling active thumb into view (vertical)
+  // Uses direct scrollTop manipulation instead of scrollIntoView to avoid
+  // scrolling the parent MobileScrollContainer back to the gallery
   const mobileThumbnailsRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!mobileThumbnailsRef.current) return
     const container = mobileThumbnailsRef.current
     const activeThumb = container.children[current] as HTMLElement | undefined
     if (activeThumb) {
-      const containerRect = container.getBoundingClientRect()
-      const thumbRect = activeThumb.getBoundingClientRect()
-      if (thumbRect.top < containerRect.top || thumbRect.bottom > containerRect.bottom) {
-        activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
+      const thumbTop = activeThumb.offsetTop
+      const thumbBottom = thumbTop + activeThumb.offsetHeight
+      const containerScrollTop = container.scrollTop
+      const containerHeight = container.clientHeight
+
+      if (thumbTop < containerScrollTop) {
+        container.scrollTo({ top: thumbTop, behavior: 'smooth' })
+      } else if (thumbBottom > containerScrollTop + containerHeight) {
+        container.scrollTo({ top: thumbBottom - containerHeight, behavior: 'smooth' })
       }
     }
   }, [current])

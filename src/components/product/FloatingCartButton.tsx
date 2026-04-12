@@ -72,9 +72,9 @@ export function FloatingCartButton({ productId, variantId, price, inStock }: Pro
   return (
     <div
       className={cn(
-        'fixed left-0 right-0 z-[55] px-4 transition-all duration-300 md:hidden',
-        // Position above bottom nav: bottom-nav is ~72px (64 + safe area)
-        'bottom-[72px]',
+        'fixed left-0 right-0 z-[55] flex justify-center px-4 transition-all duration-300 md:hidden',
+        // Position above bottom nav with breathing room
+        'bottom-[84px]',
         visible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0 pointer-events-none',
       )}
     >
@@ -82,14 +82,14 @@ export function FloatingCartButton({ productId, variantId, price, inStock }: Pro
         onClick={handleClick}
         disabled={isLoading || !inStock}
         className={cn(
-          'flex w-full items-center justify-center gap-2.5 rounded-2xl py-4 font-sans text-[15px] font-semibold shadow-lg transition-all duration-200',
+          'flex w-[78%] max-w-[320px] items-center justify-center gap-2 rounded-2xl py-3.5 font-sans text-[14px] font-semibold shadow-lg transition-all duration-200',
           inStock
             ? 'bg-[#2d2d2d] text-[#faf5f0] active:scale-[0.98]'
             : 'bg-[#e8e4de] text-[#b0a99e] cursor-not-allowed',
           isLoading && 'opacity-70',
         )}
       >
-        <ShoppingBag className="h-5 w-5" strokeWidth={1.5} />
+        <ShoppingBag className="h-4.5 w-4.5" strokeWidth={1.5} />
         {inStock ? (
           <span>
             В корзину&nbsp;&nbsp;·&nbsp;&nbsp;{formatPrice(price)}&nbsp;&#8381;
