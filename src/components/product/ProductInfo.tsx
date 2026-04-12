@@ -2,9 +2,7 @@
 
 import type { Product, Variant, VariantOption, VariantType } from '@/payload-types'
 import { useCallback, useMemo, useState } from 'react'
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useCart } from '@payloadcms/plugin-ecommerce/client/react'
-import { createUrl } from '@/utilities/createUrl'
 import { cn } from '@/utilities/cn'
 import { toast } from 'sonner'
 import { Clock, Star, ShoppingBag, ChevronDown, Shield, Truck } from 'lucide-react'
@@ -12,6 +10,47 @@ import { Clock, Star, ShoppingBag, ChevronDown, Shield, Truck } from 'lucide-rea
 function formatPrice(price: number): string {
   return new Intl.NumberFormat('ru-RU').format(price)
 }
+
+/**
+ * Compact label — same logic as ProductCardShop.
+ * "size" → abbreviate (Large→L, Medium→M, Small→S)
+ * "quantity" → extract leading number ("25 роз"→"25")
+ */
+function compactLabel(raw: string, displayType: 'size' | 'quantity'): string {
+  const trimmed = raw.trim()
+
+  if (displayType === 'quantity') {
+    const numMatch = trimmed.match(/^(\d+)/)
+    if (numMatch) return numMatch[1]!
+    return trimmed
+  }
+
+  const lower = trimmed.toLowerCase()
+  const abbreviations: Record<string, string> = {
+    small: 'S',
+    medium: 'M',
+    large: 'L',
+    'x-large': 'XL',
+    'extra large': 'XL',
+    xl: 'XL',
+    xs: 'XS',
+    'x-small': 'XS',
+    маленький: 'S',
+    средний: 'M',
+    большой: 'L',
+  }
+
+  for (const [key, abbr] of Object.entries(abbreviations)) {
+    if (lower.includes(key)) return abbr
+  }
+
+  if (trimmed.length <= 3) return trimmed
+  const firstWord = trimmed.split(/[\s,]+/)[0] || trimmed
+  return firstWord.length <= 4 ? firstWord : firstWord.slice(0, 3)
+}
+
+/** Variant type names to hide — color is chosen via wrapper picker, not variants */
+const HIDDEN_TYPE_NAMES = new Set(['color', 'colour', 'цвет'])
 
 // Wrapper color options
 const wrapperColors = [
@@ -28,9 +67,6 @@ type Props = {
 }
 
 export function ProductInfo({ product }: Props) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
   const { addItem, isLoading } = useCart()
   const [selectedWrapper, setSelectedWrapper] = useState(0)
   const [compositionOpen, setCompositionOpen] = useState(false)
@@ -43,16 +79,49 @@ export function ProductInfo({ product }: Props) {
   )
   const hasVariants = product.enableVariants && variants.length > 0
 
-  // Find selected variant from URL params
+  // Filter out COLOR variant types — only show size/quantity
+  const visibleVariantTypes = useMemo(
+    () =>
+      variantTypes.filter(
+        (t) => !HIDDEN_TYPE_NAMES.has(t.name.toLowerCase()),
+      ),
+    [variantTypes],
+  )
+
+  const displayType = product.variantDisplayType ?? 'size'
+
+  // Russian label based on variantDisplayType
+  const variantLabel = displayType === 'quantity' ? 'Количество' : 'Размер'
+
+  // ── Variant selection via useState (no router navigation) ──
+  const [selectedVariantId, setSelectedVariantId] = useState<number | undefined>(() => {
+    if (!hasVariants || !variants.length) return undefined
+    return variants[0]?.id
+  })
+
   const selectedVariant = useMemo<Variant | undefined>(() => {
     if (!hasVariants) return undefined
-    const variantId = searchParams.get('variant')
-    if (variantId) {
-      return variants.find((v) => String(v.id) === variantId)
+    if (selectedVariantId) {
+      return variants.find((v) => v.id === selectedVariantId) || variants[0]
     }
-    // Default to first variant
     return variants[0]
-  }, [hasVariants, searchParams, variants])
+  }, [hasVariants, selectedVariantId, variants])
+
+  // Select option → find matching variant → update state (no navigation)
+  const selectOption = useCallback(
+    (optionId: number) => {
+      const matchingVariant = variants.find((variant) => {
+        const variantOpts = (variant.options || []).filter(
+          (o): o is VariantOption => typeof o === 'object' && o !== null,
+        )
+        return variantOpts.some((o) => o.id === optionId)
+      })
+      if (matchingVariant) {
+        setSelectedVariantId(matchingVariant.id)
+      }
+    },
+    [variants],
+  )
 
   // Price logic
   const currentPrice = useMemo(() => {
@@ -68,42 +137,6 @@ export function ProductInfo({ product }: Props) {
   }, [currentPrice])
 
   const bonusPoints = Math.round(currentPrice * 0.05)
-
-  // Handle variant option selection
-  const selectOption = useCallback(
-    (typeName: string, optionId: number) => {
-      const params = new URLSearchParams(searchParams.toString())
-      params.delete('variant')
-      params.delete('image')
-      params.set(typeName, String(optionId))
-
-      // Find matching variant
-      const currentOptions = new Map<string, string>()
-      variantTypes.forEach((type) => {
-        const val = typeName === type.name ? String(optionId) : params.get(type.name)
-        if (val) currentOptions.set(type.name, val)
-      })
-
-      const matchingVariant = variants.find((variant) => {
-        const variantOpts = (variant.options || []).filter(
-          (o): o is VariantOption => typeof o === 'object' && o !== null,
-        )
-        return variantOpts.every((opt) => {
-          const variantType = typeof opt.variantType === 'object' ? opt.variantType : null
-          if (!variantType) return true
-          const expectedValue = currentOptions.get(variantType.name)
-          return !expectedValue || expectedValue === String(opt.id)
-        })
-      })
-
-      if (matchingVariant) {
-        params.set('variant', String(matchingVariant.id))
-      }
-
-      router.replace(createUrl(pathname, params), { scroll: false })
-    },
-    [router, pathname, searchParams, variants, variantTypes],
-  )
 
   // Add to cart handler
   const handleAddToCart = useCallback(async () => {
@@ -166,29 +199,25 @@ export function ProductInfo({ product }: Props) {
 
       <div className="h-px bg-[#e8e4de]" />
 
-      {/* Variant selector */}
-      {hasVariants && variantTypes.length > 0 && (
+      {/* Variant selector — only visible (non-color) types */}
+      {hasVariants && visibleVariantTypes.length > 0 && (
         <div className="space-y-5">
-          {variantTypes.map((type) => {
+          {visibleVariantTypes.map((type) => {
             const options = type.options?.docs?.filter(
               (o): o is VariantOption => typeof o === 'object' && o !== null,
             )
             if (!options?.length) return null
 
-            const activeOptionId = searchParams.get(type.name)
-
             return (
               <div key={type.id}>
-                <p className="mb-3 font-sans text-[13px] font-medium uppercase tracking-wide text-[#8a8a8a]">
-                  {type.label}
+                <p className="mb-3 font-sans text-[12px] font-medium uppercase tracking-[1px] text-[#8a8a8a]">
+                  {variantLabel}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {options.map((option) => {
-                    const isActive =
-                      activeOptionId === String(option.id) ||
-                      (!activeOptionId && selectedVariant?.options?.some(
-                        (o) => (typeof o === 'object' ? o.id : o) === option.id,
-                      ))
+                    const isActive = selectedVariant?.options?.some(
+                      (o) => (typeof o === 'object' ? o.id : o) === option.id,
+                    )
 
                     // Check availability
                     const isAvailable = variants.some((variant) => {
@@ -199,10 +228,12 @@ export function ProductInfo({ product }: Props) {
                       return hasOption && (variant.inventory || 0) > 0
                     })
 
+                    const label = compactLabel(option.label, displayType)
+
                     return (
                       <button
                         key={option.id}
-                        onClick={() => selectOption(type.name, option.id)}
+                        onClick={() => selectOption(option.id)}
                         disabled={!isAvailable}
                         className={cn(
                           'cursor-pointer rounded-full border px-5 py-2.5 font-sans text-[13px] font-medium transition-all duration-200',
@@ -213,7 +244,7 @@ export function ProductInfo({ product }: Props) {
                               : 'border-[#e8e4de] bg-[#f5f0ea] text-[#c8c3bb] cursor-not-allowed',
                         )}
                       >
-                        {option.label}
+                        {label}
                       </button>
                     )
                   })}
@@ -226,7 +257,7 @@ export function ProductInfo({ product }: Props) {
 
       {/* Wrapper color selector */}
       <div>
-        <p className="mb-3 font-sans text-[13px] font-medium uppercase tracking-wide text-[#8a8a8a]">
+        <p className="mb-3 font-sans text-[12px] font-medium uppercase tracking-[1px] text-[#8a8a8a]">
           Цвет упаковки
         </p>
         <div className="flex flex-wrap gap-3">
@@ -316,7 +347,6 @@ export function ProductInfo({ product }: Props) {
             )}
           >
             <div className="pb-2 pt-2 font-sans text-[14px] leading-relaxed text-[#5a5a5a]">
-              {/* Rich text description rendered as simple text fallback */}
               <ProductDescriptionText description={product.description} />
             </div>
           </div>
