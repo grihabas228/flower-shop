@@ -89,6 +89,12 @@ export function ProductCardShop({ product, index }: Props) {
     return 20 + (seed % 180)
   }, [product.id])
 
+  // Stock check — same logic as ProductInfo
+  const inStock = useMemo(() => {
+    if (hasVariants) return variants.some((v) => (v.inventory || 0) > 0)
+    return (product.inventory || 0) > 0
+  }, [hasVariants, variants, product.inventory])
+
   // Instant from optimistic provider — localStorage on init, no flash
   const qty = getQty(product.id)
   const inCart = qty > 0
@@ -127,7 +133,7 @@ export function ProductCardShop({ product, index }: Props) {
       )}
     >
       {/* PHOTO */}
-      <Link href={`/products/${product.slug}`} className="relative aspect-[3/4] w-full bg-[#f3ede7]">
+      <Link href={`/products/${product.slug}`} className={cn('relative aspect-[3/4] w-full bg-[#f3ede7]', !inStock && 'opacity-70')}>
         {mainImage?.url ? (
           <Image
             src={mainImage.url}
@@ -176,9 +182,13 @@ export function ProductCardShop({ product, index }: Props) {
           </span>
         </div>
 
-        {/* BUTTON — instant state from OptimisticCartProvider */}
+        {/* BUTTON */}
         <div className="mt-auto px-3 pb-3">
-          {inCart ? (
+          {!inStock ? (
+            <div className="flex h-[42px] w-full items-center justify-center rounded-xl bg-[#e0dbd5] font-sans cursor-not-allowed">
+              <span className="text-[14px] font-medium text-[#999]">Нет в наличии</span>
+            </div>
+          ) : inCart ? (
             <div className="flex h-[42px] w-full items-center rounded-xl bg-[#2d2d2d] font-sans">
               <button
                 onClick={handleDecrement}
