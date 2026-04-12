@@ -100,7 +100,7 @@ export function ProductGallery({ gallery }: Props) {
     [emblaApi],
   )
 
-  // Mobile thumbnail ref for auto-scrolling active thumb into view
+  // Mobile thumbnail ref for auto-scrolling active thumb into view (vertical)
   const mobileThumbnailsRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!mobileThumbnailsRef.current) return
@@ -109,9 +109,8 @@ export function ProductGallery({ gallery }: Props) {
     if (activeThumb) {
       const containerRect = container.getBoundingClientRect()
       const thumbRect = activeThumb.getBoundingClientRect()
-      // If thumbnail is outside visible area, scroll it into view
-      if (thumbRect.left < containerRect.left || thumbRect.right > containerRect.right) {
-        activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+      if (thumbRect.top < containerRect.top || thumbRect.bottom > containerRect.bottom) {
+        activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
       }
     }
   }, [current])
@@ -124,29 +123,61 @@ export function ProductGallery({ gallery }: Props) {
     <>
       {/* ============ MOBILE GALLERY (< sm) ============ */}
       <div className="flex flex-col sm:hidden">
-        {/* Swipeable main image carousel */}
-        <div className="overflow-hidden rounded-2xl bg-[#f5f0ea]" ref={emblaRef}>
-          <div className="flex">
-            {gallery.map((item, i) => (
-              <div
-                key={`mobile-slide-${item.image.id}-${i}`}
-                className="min-w-0 shrink-0 grow-0 basis-full"
-              >
-                <div className="relative aspect-[3/4] w-full">
-                  {item.image.url && (
-                    <Image
-                      src={item.image.url}
-                      alt={item.image.alt || ''}
-                      fill
-                      className="object-cover"
-                      sizes="100vw"
-                      priority={i === 0}
-                    />
-                  )}
+        {/* Main photo + vertical thumbnails on the right */}
+        <div className="flex gap-2">
+          {/* Swipeable main image carousel */}
+          <div className="min-w-0 flex-1 overflow-hidden rounded-2xl bg-[#f5f0ea]" ref={emblaRef}>
+            <div className="flex">
+              {gallery.map((item, i) => (
+                <div
+                  key={`mobile-slide-${item.image.id}-${i}`}
+                  className="min-w-0 shrink-0 grow-0 basis-full"
+                >
+                  <div className="relative aspect-[3/4] w-full">
+                    {item.image.url && (
+                      <Image
+                        src={item.image.url}
+                        alt={item.image.alt || ''}
+                        fill
+                        className="object-cover"
+                        sizes="85vw"
+                        priority={i === 0}
+                      />
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
+
+          {/* Vertical thumbnails on the right */}
+          {gallery.length > 1 && (
+            <div
+              ref={mobileThumbnailsRef}
+              className="flex w-[52px] shrink-0 flex-col gap-1.5 overflow-y-auto scrollbar-hide"
+            >
+              {gallery.map((item, i) => (
+                <button
+                  key={`mobile-thumb-${item.image.id}-${i}`}
+                  onClick={() => selectMobileImage(i)}
+                  className={cn(
+                    'relative aspect-square w-full shrink-0 overflow-hidden rounded-lg transition-all duration-300',
+                    i === current
+                      ? 'ring-2 ring-[#e8b4b8] ring-offset-1 ring-offset-[#faf5f0] opacity-100'
+                      : 'opacity-45 grayscale-[30%]',
+                  )}
+                >
+                  <Image
+                    src={item.image.url || ''}
+                    alt={item.image.alt || ''}
+                    fill
+                    className="object-cover"
+                    sizes="52px"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Dot indicators */}
@@ -164,35 +195,6 @@ export function ProductGallery({ gallery }: Props) {
                     : 'h-1.5 w-1.5 bg-[#d5d0c9]',
                 )}
               />
-            ))}
-          </div>
-        )}
-
-        {/* Horizontal thumbnails */}
-        {gallery.length > 1 && (
-          <div
-            ref={mobileThumbnailsRef}
-            className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide"
-          >
-            {gallery.map((item, i) => (
-              <button
-                key={`mobile-thumb-${item.image.id}-${i}`}
-                onClick={() => selectMobileImage(i)}
-                className={cn(
-                  'relative h-[60px] w-[60px] shrink-0 overflow-hidden rounded-lg transition-all duration-300',
-                  i === current
-                    ? 'ring-2 ring-[#e8b4b8] ring-offset-1 ring-offset-[#faf5f0] opacity-100'
-                    : 'opacity-50 grayscale-[30%]',
-                )}
-              >
-                <Image
-                  src={item.image.url || ''}
-                  alt={item.image.alt || ''}
-                  fill
-                  className="object-cover"
-                  sizes="60px"
-                />
-              </button>
             ))}
           </div>
         )}
