@@ -5,6 +5,7 @@ import {
   Search,
   User,
   ShoppingBag,
+  Heart,
   MapPin,
   Phone,
   Clock,
@@ -24,14 +25,15 @@ import { usePathname, useRouter } from 'next/navigation'
 import React, { Suspense } from 'react'
 
 import { MobileMenu } from './MobileMenu'
+import { useFavorites } from '@/providers/FavoritesProvider'
 import type { Header } from 'src/payload-types'
 
 const defaultNavLinks = [
+  { label: 'Каталог', href: '/shop' },
   { label: 'Букеты', href: '/shop?category=bukety' },
   { label: 'Розы', href: '/shop?category=rozy' },
   { label: 'Композиции', href: '/shop?category=kompozicii' },
   { label: 'Подарки', href: '/shop?category=podarki' },
-  { label: 'Акции', href: '/shop' },
   { label: 'О нас', href: '/about' },
   { label: 'Доставка', href: '/delivery' },
 ]
@@ -67,6 +69,7 @@ export function HeaderClient({ header }: Props) {
   const pathname = usePathname()
   const router = useRouter()
   const { user } = useAuth()
+  const { count: favoritesCount } = useFavorites()
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
 
@@ -300,14 +303,26 @@ export function HeaderClient({ header }: Props) {
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <button
                   onClick={handleAccountClick}
-                  className="p-2 text-[#2d2d2d] transition-colors hover:text-[#5a5a5a] cursor-pointer"
+                  className="p-2 text-[#2d2d2d] transition-colors hover:text-[#e8b4b8] cursor-pointer"
                   aria-label="Аккаунт"
                 >
                   <User className="h-5 w-5" strokeWidth={1.5} />
                 </button>
+                <Link
+                  href="/favorites"
+                  className="relative p-2 text-[#2d2d2d] transition-colors hover:text-[#e8b4b8]"
+                  aria-label="Избранное"
+                >
+                  <Heart className="h-5 w-5" strokeWidth={1.5} />
+                  {favoritesCount > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e8b4b8] px-1 text-[9px] font-semibold text-white">
+                      {favoritesCount > 99 ? '99+' : favoritesCount}
+                    </span>
+                  )}
+                </Link>
                 <Suspense
                   fallback={
                     <button className="relative p-2 text-[#2d2d2d]" aria-label="Корзина">
@@ -336,7 +351,7 @@ export function HeaderClient({ header }: Props) {
                     <Link
                       href={link.href}
                       className={cn(
-                        'relative py-1 font-sans text-[13px] uppercase tracking-[0.08em] text-[#5a5a5a] transition-colors hover:text-[#2d2d2d]',
+                        'relative py-1 font-sans text-[13px] uppercase tracking-[0.08em] text-[#5a5a5a] transition-colors hover:text-[#e8b4b8]',
                         isActive && 'text-[#2d2d2d]',
                       )}
                     >
