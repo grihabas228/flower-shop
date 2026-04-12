@@ -34,7 +34,7 @@ const menuNavLinks = [
 ]
 
 const navItems = [
-  { label: 'Букеты', href: '/shop?category=bukety', icon: Flower2 },
+  { label: 'Каталог', href: '/shop', icon: Flower2 },
   { label: 'Избранное', href: '/favorites', icon: Heart, hasFavoritesBadge: true },
   { label: 'Корзина', href: '/cart', icon: ShoppingBag, hasBadge: true },
   { label: 'Кабинет', href: '/account', icon: User },
