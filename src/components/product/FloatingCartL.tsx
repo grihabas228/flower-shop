@@ -111,58 +111,66 @@ export function FloatingCartL({
           : 'pointer-events-none translate-y-6 opacity-0',
       )}
     >
-      {/* The inverted-L shape: flex-col aligns pill column above cart row */}
+      {/* Unified rounded shape: pills column + cart button */}
       <div className="flex flex-col items-end">
-        {/* ── Vertical pill column (right-aligned) ── */}
-        {hasPills && (
-          <div
-            className="flex max-h-[220px] flex-col gap-1 overflow-y-auto rounded-t-xl px-1.5 py-2 scrollbar-hide"
-            style={{ backgroundColor: '#3d3d3d' }}
-          >
-            {pills.map((pill) => {
-              const isActive = pill.id === selectedVariantId
-              return (
-                <button
-                  key={pill.optionId}
-                  onClick={() => onSelectVariant(pill.id)}
-                  disabled={!pill.available}
-                  className={cn(
-                    'flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full font-sans text-[12px] font-semibold transition-all duration-200',
-                    isActive
-                      ? 'bg-[#faf5f0] text-[#2d2d2d]'
-                      : pill.available
-                        ? 'bg-[rgba(250,245,240,0.15)] text-[#faf5f0] active:scale-95'
-                        : 'bg-[rgba(250,245,240,0.08)] text-[rgba(250,245,240,0.3)] cursor-not-allowed',
-                  )}
-                >
-                  {pill.label}
-                </button>
-              )
-            })}
-          </div>
-        )}
-
-        {/* ── Horizontal cart button ── */}
-        <button
-          onClick={handleAddToCart}
-          disabled={isLoading || !inStock}
+        <div
           className={cn(
-            'flex items-center gap-2 px-5 py-3 font-sans text-[14px] font-medium shadow-xl transition-all duration-200',
-            // Shape: if pills exist → flat top-right (joins column), rounded elsewhere
-            hasPills
-              ? 'rounded-bl-2xl rounded-br-none rounded-tl-2xl rounded-tr-none'
-              : 'rounded-2xl',
-            inStock
-              ? 'bg-[#2d2d2d] text-[#faf5f0] active:scale-[0.97]'
-              : 'cursor-not-allowed bg-[#e8e4de] text-[#b0a99e]',
-            isLoading && 'opacity-70',
+            'flex flex-col',
+            hasPills ? 'overflow-hidden rounded-[16px] shadow-xl' : '',
           )}
         >
-          <ShoppingBag className="h-[18px] w-[18px]" strokeWidth={1.5} />
-          <span className="whitespace-nowrap">
-            {inStock ? `${formatPrice(price)} ₽` : 'Нет'}
-          </span>
-        </button>
+          {/* ── Vertical pill column ── */}
+          {hasPills && (
+            <div
+              className="flex max-h-[260px] flex-col items-center gap-1 overflow-y-auto py-2 scrollbar-hide"
+              style={{ backgroundColor: '#3d3d3d' }}
+            >
+              {pills.map((pill) => {
+                const isActive = pill.id === selectedVariantId
+                return (
+                  <button
+                    key={pill.optionId}
+                    onClick={() => onSelectVariant(pill.id)}
+                    disabled={!pill.available}
+                    className="group flex h-[44px] w-[44px] shrink-0 items-center justify-center"
+                  >
+                    <span
+                      className={cn(
+                        'flex h-[40px] w-[40px] items-center justify-center rounded-full font-sans text-[12px] font-semibold transition-all duration-150',
+                        isActive
+                          ? 'bg-[#faf5f0] text-[#2d2d2d]'
+                          : pill.available
+                            ? 'bg-[rgba(250,245,240,0.15)] text-[#faf5f0] group-active:bg-[rgba(250,245,240,0.3)] group-active:scale-95'
+                            : 'bg-[rgba(250,245,240,0.08)] text-[rgba(250,245,240,0.3)] cursor-not-allowed',
+                      )}
+                    >
+                      {pill.label}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {/* ── Cart button ── */}
+          <button
+            onClick={handleAddToCart}
+            disabled={isLoading || !inStock}
+            className={cn(
+              'flex items-center justify-center gap-2 px-5 py-[14px] font-sans text-[14px] font-medium transition-all duration-200',
+              !hasPills && 'rounded-2xl shadow-xl',
+              inStock
+                ? 'bg-[#2d2d2d] text-[#faf5f0] active:scale-[0.97]'
+                : 'cursor-not-allowed bg-[#e8e4de] text-[#b0a99e]',
+              isLoading && 'opacity-70',
+            )}
+          >
+            <ShoppingBag className="h-[18px] w-[18px]" strokeWidth={1.5} />
+            <span className="whitespace-nowrap">
+              {inStock ? `${formatPrice(price)} ₽` : 'Нет'}
+            </span>
+          </button>
+        </div>
       </div>
     </div>
   )
