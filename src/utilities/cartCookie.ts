@@ -67,7 +67,27 @@ export function parseDeliveryCookie(cookieValue: string | undefined | null): Del
   }
 }
 
+// ─── Favorites cookie ────────────────────────────────────────────────────────
+
+const FAVORITES_COOKIE = 'fleur-favorites'
+
+export function setFavoritesCookie(ids: number[]) {
+  const value = encodeURIComponent(JSON.stringify(ids))
+  document.cookie = `${FAVORITES_COOKIE}=${value}; path=/; max-age=${MAX_AGE}; SameSite=Lax`
+}
+
+export function parseFavoritesCookie(cookieValue: string | undefined | null): number[] {
+  if (!cookieValue) return []
+  try {
+    const parsed = JSON.parse(decodeURIComponent(cookieValue))
+    return Array.isArray(parsed) ? parsed.filter((id): id is number => typeof id === 'number') : []
+  } catch {
+    return []
+  }
+}
+
 // ─── Cookie names (for server-side reading with next/headers cookies()) ──────
 
 export const CART_COOKIE_NAME = CART_COOKIE
 export const DELIVERY_COOKIE_NAME = DELIVERY_COOKIE
+export const FAVORITES_COOKIE_NAME = FAVORITES_COOKIE

@@ -14,7 +14,8 @@ export const Providers: React.FC<{
   children: React.ReactNode
   initialCart?: [number, number][] | null
   initialDelivery?: DeliveryCookieData
-}> = ({ children, initialCart, initialDelivery }) => {
+  initialFavorites?: number[]
+}> = ({ children, initialCart, initialDelivery, initialFavorites }) => {
   return (
     <ThemeProvider>
       <AuthProvider>
@@ -43,7 +44,7 @@ export const Providers: React.FC<{
           >
             <OptimisticCartProvider initialCart={initialCart}>
               <DeliveryProvider initialDelivery={initialDelivery}>
-                <FavoritesProvider>{children}</FavoritesProvider>
+                <FavoritesProvider initialFavorites={initialFavorites}>{children}</FavoritesProvider>
               </DeliveryProvider>
             </OptimisticCartProvider>
           </EcommerceProvider>

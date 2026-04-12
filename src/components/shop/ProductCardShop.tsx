@@ -50,13 +50,15 @@ type Props = {
   product: ProductCardData
   deliveryTime?: string
   bonusPoints?: number
+  /** Card index in the grid — first 6 get priority loading */
+  index?: number
 }
 
 function formatPrice(price: number): string {
   return price.toLocaleString('ru-RU')
 }
 
-export function ProductCardShop({ product }: Props) {
+export function ProductCardShop({ product, index }: Props) {
   const { addToCart, increment, decrement, getQty } = useOptimisticCart()
   const { estimatedTime, hasAddress } = useDelivery()
   const { isFavorite, toggleFavorite } = useFavorites()
@@ -125,14 +127,15 @@ export function ProductCardShop({ product }: Props) {
       )}
     >
       {/* PHOTO */}
-      <Link href={`/products/${product.slug}`} className="relative aspect-[3/4] w-full bg-[#f5f0ea]">
+      <Link href={`/products/${product.slug}`} className="relative aspect-[3/4] w-full bg-[#f3ede7]">
         {mainImage?.url ? (
           <Image
             src={mainImage.url}
             alt={mainImage.alt || product.title}
             fill
             className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            sizes="(max-width: 768px) 50vw, 33vw"
+            priority={index !== undefined && index < 6}
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center">

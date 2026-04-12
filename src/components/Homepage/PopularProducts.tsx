@@ -59,8 +59,8 @@ export function PopularProducts({ products }: Props) {
       </div>
 
       <div className="grid grid-cols-2 gap-1.5 sm:gap-3 lg:grid-cols-4 lg:gap-5">
-        {products.map((product) => (
-          <ProductCardShop key={product.id} product={product as Parameters<typeof ProductCardShop>[0]['product']} />
+        {products.map((product, i) => (
+          <ProductCardShop key={product.id} product={product as Parameters<typeof ProductCardShop>[0]['product']} index={i} />
         ))}
       </div>
       </div>

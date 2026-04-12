@@ -168,10 +168,11 @@ export default async function ShopPage({ searchParams }: Props) {
       {/* Product grid */}
       {products.docs.length > 0 ? (
         <div className="grid grid-cols-2 gap-1.5 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4">
-          {products.docs.map((product) => (
+          {products.docs.map((product, i) => (
             <ProductCardShop
               key={product.id}
               product={transformProductForCard(product)}
+              index={i}
             />
           ))}
         </div>
