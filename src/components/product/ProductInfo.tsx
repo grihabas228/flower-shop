@@ -212,7 +212,7 @@ export function ProductInfo({ product, selectedVariantId: externalVariantId, onV
           <button
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent('fleur:open-address-sheet'))}
-            className="flex items-center gap-1 font-sans text-[14px] text-[#e8b4b8] underline decoration-[#e8b4b8]/40 underline-offset-2 transition-colors duration-150 hover:text-[#d9a0a5]"
+            className="flex items-center gap-1 font-sans text-[14px] font-medium text-[#c4787e] underline decoration-[#c4787e]/50 underline-offset-2 transition-colors duration-150 hover:text-[#a8616a]"
           >
             <span>Укажите адрес для расчёта доставки</span>
             <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} />
