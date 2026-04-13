@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Search,
   User,
@@ -20,20 +20,20 @@ import { Cart } from '@/components/Cart'
 import { AuthModal } from '@/components/AuthModal'
 import { useAuth } from '@/providers/Auth'
 import { DeliveryAddressBar } from '@/components/DeliveryAddressBar'
+import { useDelivery, DEFAULT_DELIVERY_TIME } from '@/providers/DeliveryProvider'
+import { useOptimisticCart } from '@/providers/OptimisticCartProvider'
+import { createUrl } from '@/utilities/createUrl'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import React, { Suspense } from 'react'
 
 import { MobileMenu } from './MobileMenu'
 import { useFavorites } from '@/providers/FavoritesProvider'
 import type { Header } from 'src/payload-types'
 
-const defaultNavLinks = [
+// Desktop nav — short, clean
+const desktopNavLinks = [
   { label: 'Каталог', href: '/shop' },
-  { label: 'Букеты', href: '/shop?category=bukety' },
-  { label: 'Розы', href: '/shop?category=rozy' },
-  { label: 'Композиции', href: '/shop?category=kompozicii' },
-  { label: 'Подарки', href: '/shop?category=podarki' },
   { label: 'О нас', href: '/about' },
   { label: 'Доставка', href: '/delivery' },
 ]
@@ -54,29 +54,27 @@ export const MOBILE_CATEGORY_BAR_H = 40
 export const MOBILE_HEADER_H = MOBILE_ADDRESS_BAR_H + MOBILE_MAIN_BAR_H // 80
 export const MOBILE_HEADER_SHOP_H = MOBILE_ADDRESS_BAR_H + MOBILE_MAIN_BAR_H + MOBILE_CATEGORY_BAR_H // 120
 
-// Fixed heights — desktop
-const DESKTOP_INFO_BAR_H = 32
-const DESKTOP_MAIN_BAR_H = 70
-const DESKTOP_NAV_BAR_H = 48
-const DESKTOP_HEADER_FULL_H = DESKTOP_INFO_BAR_H + DESKTOP_MAIN_BAR_H + DESKTOP_NAV_BAR_H
+// Fixed heights — desktop (new 2-row layout)
+const DESKTOP_ROW1_H = 64
+const DESKTOP_ROW2_H = 46
+const DESKTOP_HEADER_FULL_H = DESKTOP_ROW1_H + DESKTOP_ROW2_H
 
 type Props = {
   header: Header
 }
 
 export function HeaderClient({ header }: Props) {
-  const navLinks = defaultNavLinks
   const pathname = usePathname()
   const router = useRouter()
   const { user } = useAuth()
   const { count: favoritesCount } = useFavorites()
+  const { totalItems: cartCount } = useOptimisticCart()
+  const { zone, hasAddress } = useDelivery()
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
 
-  // Desktop: collapse top info bar on scroll
-  const [isScrolled, setIsScrolled] = useState(false)
-
   const isShopPage = pathname === '/shop' || pathname.startsWith('/shop?')
+  const isCartOrCheckout = pathname === '/cart' || pathname.startsWith('/checkout') || pathname.startsWith('/account')
 
   const handleAccountClick = () => {
     if (user) {
@@ -96,13 +94,6 @@ export function HeaderClient({ header }: Props) {
       return ''
     }
   })()
-
-  // Desktop scroll listener only
-  useEffect(() => {
-    const onScroll = () => setIsScrolled(window.scrollY > 50)
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
 
   // Close search on route change
   useEffect(() => {
@@ -233,152 +224,251 @@ export function HeaderClient({ header }: Props) {
       </AnimatePresence>
 
       {/* ═══════════════════════════════════════════════════════════
-          DESKTOP HEADER (≥ lg) — UNCHANGED
+          DESKTOP HEADER (≥ lg) — 2-row layout
+          Row 1: Logo · Nav · Icons (64px, fixed)
+          Row 2: Context bar — depends on page (46px, sticky)
           ═══════════════════════════════════════════════════════════ */}
-      <header className="fixed top-0 left-0 right-0 z-50 hidden lg:block bg-[#faf5f0] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-        <AnimatePresence>
-          {!isScrolled && (
-            <motion.div
-              initial={{ height: DESKTOP_INFO_BAR_H, opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3, ease: 'easeInOut' }}
-              className="overflow-hidden bg-[#f0ebe3]"
-            >
-              <div className="mx-auto flex h-8 max-w-7xl items-center justify-between px-4 font-sans text-[12px] tracking-wide text-[#5a5a5a]">
-                <div className="flex items-center gap-1.5">
-                  <MapPin className="h-3 w-3" strokeWidth={1.5} />
-                  <span>Москва</span>
-                </div>
-                <span className="text-[#6b6b6b]">Бесплатная доставка от 5 000 &#8381;</span>
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="h-3 w-3" strokeWidth={1.5} />
-                    <span>Доставка с 8:00 до 22:00</span>
-                  </div>
-                  <a
-                    href="tel:+74951234567"
-                    className="flex items-center gap-1.5 transition-colors hover:text-[#2d2d2d]"
+      <header className="hidden lg:block">
+        {/* ROW 1 — Main navigation, always visible */}
+        <div className="fixed top-0 left-0 right-0 z-50 border-b border-black/[0.06] bg-[#faf5f0]">
+          <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-8">
+            {/* Logo */}
+            <Link href="/" className="font-serif text-[22px] uppercase tracking-[0.2em] text-[#2d2d2d]">
+              Fleur
+            </Link>
+
+            {/* Center nav */}
+            <nav className="flex items-center gap-8">
+              {desktopNavLinks.map((link) => {
+                const isActive = link.href === '/'
+                  ? pathname === '/'
+                  : pathname.startsWith(link.href.split('?')[0]!)
+
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={cn(
+                      'font-sans text-[13px] uppercase tracking-[0.12em] transition-colors',
+                      isActive ? 'text-[#e8b4b8]' : 'text-[#5a5a5a] hover:text-[#e8b4b8]',
+                    )}
                   >
-                    <Phone className="h-3 w-3" strokeWidth={1.5} />
-                    <span>+7 (495) 123-45-67</span>
-                  </a>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                    {link.label}
+                  </Link>
+                )
+              })}
+            </nav>
 
-        <div className="border-b border-[#e8e4de]/50 bg-[#faf5f0]">
-          <div className="mx-auto max-w-7xl px-4">
-            <div
-              className={cn(
-                'flex items-center justify-between transition-all duration-300',
-                isScrolled ? 'h-14' : 'h-[70px]',
-              )}
-            >
-              <motion.div
-                animate={{ fontSize: isScrolled ? '20px' : '26px' }}
-                transition={{ duration: 0.3, ease: 'easeInOut' }}
+            {/* Right icons */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleAccountClick}
+                className="p-2 text-[#2d2d2d] transition-colors hover:text-[#e8b4b8] cursor-pointer"
+                aria-label="Аккаунт"
               >
-                <Link
-                  href="/"
-                  className="font-serif uppercase tracking-[0.2em] text-[#2d2d2d]"
-                  style={{ fontSize: 'inherit' }}
-                >
-                  Fleur
-                </Link>
-              </motion.div>
-
-              <div className="mx-12 max-w-[400px] flex-1">
-                <div className="group relative w-full">
-                  <input
-                    type="text"
-                    placeholder="Найти букет..."
-                    className="h-10 w-full rounded-full border border-[#e8e4de] bg-transparent pl-4 pr-10 font-sans text-sm text-[#2d2d2d] transition-colors placeholder:text-[#9a9a9a] focus:border-[#c9c4be] focus:outline-none"
-                  />
-                  <Search
-                    className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9a9a] transition-colors group-focus-within:text-[#5a5a5a]"
-                    strokeWidth={1.5}
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleAccountClick}
-                  className="p-2 text-[#2d2d2d] transition-colors hover:text-[#e8b4b8] cursor-pointer"
-                  aria-label="Аккаунт"
-                >
-                  <User className="h-5 w-5" strokeWidth={1.5} />
-                </button>
-                <Link
-                  href="/favorites"
-                  className="relative p-2 text-[#2d2d2d] transition-colors hover:text-[#e8b4b8]"
-                  aria-label="Избранное"
-                >
-                  <Heart className="h-5 w-5" strokeWidth={1.5} />
-                  {favoritesCount > 0 && (
-                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e8b4b8] px-1 text-[9px] font-semibold text-white">
-                      {favoritesCount > 99 ? '99+' : favoritesCount}
-                    </span>
-                  )}
-                </Link>
-                <Suspense
-                  fallback={
-                    <button className="relative p-2 text-[#2d2d2d]" aria-label="Корзина">
-                      <ShoppingBag className="h-5 w-5" strokeWidth={1.5} />
-                    </button>
-                  }
-                >
-                  <Cart />
-                </Suspense>
-              </div>
+                <User className="h-[20px] w-[20px]" strokeWidth={1.5} />
+              </button>
+              <Link
+                href="/favorites"
+                className="relative p-2 text-[#2d2d2d] transition-colors hover:text-[#e8b4b8]"
+                aria-label="Избранное"
+              >
+                <Heart className="h-[20px] w-[20px]" strokeWidth={1.5} />
+                {favoritesCount > 0 && (
+                  <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e8b4b8] px-1 text-[9px] font-semibold text-white">
+                    {favoritesCount > 99 ? '99+' : favoritesCount}
+                  </span>
+                )}
+              </Link>
+              <Link
+                href="/cart"
+                className="relative p-2 text-[#2d2d2d] transition-colors hover:text-[#e8b4b8]"
+                aria-label="Корзина"
+              >
+                <ShoppingBag className="h-[20px] w-[20px]" strokeWidth={1.5} />
+                {cartCount > 0 && (
+                  <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e8b4b8] px-1 text-[9px] font-semibold text-white">
+                    {cartCount > 99 ? '99+' : cartCount}
+                  </span>
+                )}
+              </Link>
             </div>
           </div>
         </div>
 
-        <nav className="border-b border-[#e8e4de]/30 bg-[#faf5f0]">
-          <div className="mx-auto max-w-7xl px-4">
-            <ul className="flex h-12 items-center justify-center gap-10">
-              {navLinks.map((link) => {
-                const isActive =
-                  link.href !== '#' && link.href !== '/'
-                    ? pathname.startsWith(link.href.split('?')[0]!)
-                    : pathname === link.href
-
-                return (
-                  <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className={cn(
-                        'relative py-1 font-sans text-[13px] uppercase tracking-[0.08em] text-[#5a5a5a] transition-colors hover:text-[#e8b4b8]',
-                        isActive && 'text-[#2d2d2d]',
-                      )}
-                    >
-                      {link.label}
-                      {isActive && (
-                        <motion.span
-                          layoutId="nav-underline"
-                          className="absolute bottom-0 left-0 right-0 h-px bg-[#2d2d2d]"
-                          transition={{ duration: 0.2 }}
-                        />
-                      )}
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
+        {/* ROW 2 — Context bar (sticky below row 1) */}
+        {!isCartOrCheckout && (
+          <div className="fixed top-16 left-0 right-0 z-40 border-b border-black/[0.04] bg-white">
+            <div className="mx-auto flex h-[46px] max-w-7xl items-center px-8">
+              <Suspense fallback={null}>
+                <DesktopContextBar
+                  isShopPage={isShopPage}
+                  activeCategory={activeCategory}
+                  zone={zone}
+                  hasAddress={hasAddress}
+                />
+              </Suspense>
+            </div>
           </div>
-        </nav>
+        )}
       </header>
 
       {/* Desktop spacer */}
       <div
-        className="hidden lg:block transition-all duration-300"
-        style={{ height: isScrolled ? 110 : DESKTOP_HEADER_FULL_H }}
+        className="hidden lg:block"
+        style={{ height: isCartOrCheckout ? DESKTOP_ROW1_H : DESKTOP_HEADER_FULL_H }}
       />
 
       <AuthModal open={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </>
+  )
+}
+
+// ─── Desktop Context Bar ─────────────────────────────────────────────────────
+
+const shopCategoryLinks = [
+  { label: 'Все', href: '/shop', slug: '' },
+  { label: 'Букеты', href: '/shop?category=bukety', slug: 'bukety' },
+  { label: 'Розы', href: '/shop?category=rozy', slug: 'rozy' },
+  { label: 'Композиции', href: '/shop?category=kompozicii', slug: 'kompozicii' },
+  { label: 'Подарки', href: '/shop?category=podarki', slug: 'podarki' },
+]
+
+function DesktopContextBar({
+  isShopPage,
+  activeCategory,
+  zone,
+  hasAddress,
+}: {
+  isShopPage: boolean
+  activeCategory: string
+  zone: any
+  hasAddress: boolean
+}) {
+  if (isShopPage) {
+    return <ShopContextBar activeCategory={activeCategory} zone={zone} hasAddress={hasAddress} />
+  }
+
+  // Default: address info or CTA
+  return <AddressContextBar zone={zone} hasAddress={hasAddress} />
+}
+
+function AddressContextBar({ zone, hasAddress }: { zone: any; hasAddress: boolean }) {
+  if (hasAddress && zone) {
+    const addr = (zone.address || '').replace(/^г\s*Москва,?\s*/i, '').replace(/^Москва,?\s*/i, '').trim() || zone.address
+    const time = zone.estimatedTime || DEFAULT_DELIVERY_TIME
+    const price = zone.freeFrom != null && zone.price3h === 0 ? 'Бесплатно' : `${zone.price3h?.toLocaleString('ru-RU')} ₽`
+
+    return (
+      <div className="flex items-center gap-2">
+        <MapPin className="h-3.5 w-3.5 text-[#e8b4b8]" strokeWidth={1.5} />
+        <span className="font-sans text-[13px] font-medium text-[#2d2d2d]">{addr}</span>
+        <span className="font-sans text-[11px] text-[#999]">{time} · {price}</span>
+      </div>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => window.dispatchEvent(new CustomEvent('fleur:open-address-sheet'))}
+      className="flex items-center gap-2 rounded-full bg-[#f3ede7] px-4 py-1.5 transition-colors hover:bg-[#ebe5de]"
+    >
+      <MapPin className="h-3.5 w-3.5 text-[#2d2d2d]" strokeWidth={1.5} />
+      <span className="font-sans text-[12px] font-medium text-[#2d2d2d]">
+        Укажите адрес доставки для расчёта стоимости
+      </span>
+    </button>
+  )
+}
+
+function ShopContextBar({ activeCategory, zone, hasAddress }: { activeCategory: string; zone: any; hasAddress: boolean }) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [searchVal, setSearchVal] = useState(searchParams?.get('q') || '')
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    setSearchVal(searchParams?.get('q') || '')
+  }, [searchParams])
+
+  const pushSearch = useCallback((q: string) => {
+    const params = new URLSearchParams(searchParams?.toString() || '')
+    if (q.trim()) params.set('q', q.trim())
+    else params.delete('q')
+    router.push(createUrl('/shop', params))
+  }, [router, searchParams])
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value
+    setSearchVal(v)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => pushSearch(v), 300)
+  }, [pushSearch])
+
+  return (
+    <div className="flex w-full items-center gap-4">
+      {/* Search */}
+      <div className="relative w-[220px] shrink-0">
+        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#b0a99e]" strokeWidth={1.5} />
+        <input
+          type="text"
+          value={searchVal}
+          onChange={handleSearchChange}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (debounceRef.current) clearTimeout(debounceRef.current); pushSearch(searchVal) } }}
+          placeholder="Поиск букетов..."
+          className="h-8 w-full rounded-[20px] border border-black/[0.08] bg-transparent pl-9 pr-3 font-sans text-[12px] text-[#2d2d2d] placeholder:text-[#b0a99e] transition-colors focus:border-[#e8b4b8] focus:outline-none"
+        />
+      </div>
+
+      {/* Divider */}
+      <div className="h-6 w-px bg-black/[0.08]" />
+
+      {/* Category pills */}
+      <div className="flex items-center gap-1.5">
+        {shopCategoryLinks.map((cat) => {
+          const isActive = cat.slug === activeCategory || (cat.slug === '' && !activeCategory)
+          return (
+            <Link
+              key={cat.slug}
+              href={cat.href}
+              className={cn(
+                'rounded-full px-3.5 py-1 font-sans text-[12px] font-medium transition-all whitespace-nowrap',
+                isActive
+                  ? 'bg-[#2d2d2d] text-[#faf5f0]'
+                  : 'border border-black/[0.08] text-[#5a5a5a] hover:border-[#e8b4b8] hover:text-[#e8b4b8]',
+              )}
+            >
+              {cat.label}
+            </Link>
+          )
+        })}
+      </div>
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Compact address */}
+      {hasAddress && zone ? (
+        <div className="flex items-center gap-1.5 shrink-0">
+          <MapPin className="h-3.5 w-3.5 text-[#e8b4b8]" strokeWidth={1.5} />
+          <span className="font-sans text-[11px] font-medium text-[#2d2d2d]">
+            {(zone.address || '').replace(/^г\s*Москва,?\s*/i, '').replace(/^Москва,?\s*/i, '').trim() || zone.address}
+          </span>
+          <span className="font-sans text-[10px] text-[#999]">
+            {zone.estimatedTime || DEFAULT_DELIVERY_TIME} · {zone.freeFrom != null && zone.price3h === 0 ? 'Бесплатно' : `${zone.price3h?.toLocaleString('ru-RU')} ₽`}
+          </span>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('fleur:open-address-sheet'))}
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#f3ede7] px-3 py-1 transition-colors hover:bg-[#ebe5de]"
+        >
+          <MapPin className="h-3 w-3 text-[#2d2d2d]" strokeWidth={1.5} />
+          <span className="font-sans text-[11px] font-medium text-[#2d2d2d]">Укажите адрес</span>
+        </button>
+      )}
+    </div>
   )
 }

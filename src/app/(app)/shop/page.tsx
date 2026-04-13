@@ -144,18 +144,15 @@ export default async function ShopPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-8 lg:mx-auto lg:max-w-7xl lg:px-8">
-      {/* Page title (desktop only) + search */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Search — mobile only (desktop search is in header row 2) */}
+      <div className="lg:hidden">
         <Suspense fallback={null}>
           <ShopSearch />
         </Suspense>
       </div>
 
-      {/* Filters — desktop inline, mobile bottom sheet */}
-      <Suspense fallback={<FiltersSkeleton />}>
-        <div className="hidden md:block">
-          <ShopFilters categories={categories} totalProducts={products.totalDocs} />
-        </div>
+      {/* Filters — mobile bottom sheet only (desktop categories are in header row 2) */}
+      <Suspense fallback={null}>
         <MobileFiltersSheet totalProducts={products.totalDocs} />
       </Suspense>
 
