@@ -16,7 +16,6 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/utilities/cn'
-import { Cart } from '@/components/Cart'
 import { AuthModal } from '@/components/AuthModal'
 import { useAuth } from '@/providers/Auth'
 import { DeliveryAddressBar } from '@/components/DeliveryAddressBar'
