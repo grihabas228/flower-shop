@@ -336,7 +336,6 @@ const shopCategoryLinks = [
 
 function DesktopContextBar({
   isShopPage,
-  activeCategory,
   zone,
   hasAddress,
 }: {
@@ -346,32 +345,107 @@ function DesktopContextBar({
   hasAddress: boolean
 }) {
   if (isShopPage) {
-    return <ShopContextBar activeCategory={activeCategory} zone={zone} hasAddress={hasAddress} />
+    return <ShopContextBar zone={zone} hasAddress={hasAddress} />
   }
-
-  // Default: address info or CTA
   return <AddressContextBar zone={zone} hasAddress={hasAddress} />
 }
 
-function AddressContextBar({ zone, hasAddress }: { zone: any; hasAddress: boolean }) {
+/** Shared address display — clickable to open inline editor */
+function InlineAddressWidget({ zone, hasAddress }: { zone: any; hasAddress: boolean }) {
+  const { setZone, markUnavailable } = useDelivery()
+  const [editing, setEditing] = useState(false)
+  const [inputVal, setInputVal] = useState('')
+
+  const handleSelect = useCallback(async (suggestion: any) => {
+    setInputVal(suggestion.value)
+    setEditing(false)
+    // Resolve zone via API (same flow as AddressBottomSheet)
+    try {
+      const cleanRes = await fetch('/api/dadata/clean', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: suggestion.value }),
+      })
+      const cleanData = await cleanRes.json()
+      if (cleanData.error) return
+
+      const zoneRes = await fetch('/api/delivery/zone-by-address', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          beltway_hit: cleanData.beltway_hit,
+          beltway_distance: cleanData.beltway_distance,
+          cartTotal: 0,
+        }),
+      })
+      const info = await zoneRes.json()
+
+      if (info.unavailable) {
+        markUnavailable(suggestion.value)
+        return
+      }
+
+      if (info.zone) {
+        setZone({
+          id: info.zone.id,
+          zoneType: info.zone.zoneType,
+          price3h: info.zone.price3h ?? 0,
+          price1h: info.zone.price1h ?? null,
+          priceExact: info.zone.priceExact ?? null,
+          availableIntervals: info.zone.availableIntervals ?? ['3h'],
+          freeFrom: info.zone.freeFrom ?? null,
+          estimatedTime: info.zone.estimatedTime ?? null,
+          address: suggestion.value,
+        })
+      }
+    } catch { /* ignore */ }
+  }, [setZone, markUnavailable])
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="w-[320px]">
+          <AddressInputComponent
+            value={inputVal}
+            onChange={setInputVal}
+            onSelect={handleSelect}
+            placeholder="Укажите улицу и дом"
+            className="[&_input]:!h-8 [&_input]:!py-0 [&_input]:!text-[12px] [&_input]:!rounded-[20px] [&_input]:!border-black/[0.08] [&_input]:!pl-8 [&_svg]:!h-3.5 [&_svg]:!w-3.5"
+          />
+        </div>
+        <button
+          onClick={() => setEditing(false)}
+          className="p-1 text-[#999] hover:text-[#2d2d2d] transition-colors"
+          aria-label="Закрыть"
+        >
+          <X className="h-3.5 w-3.5" strokeWidth={2} />
+        </button>
+      </div>
+    )
+  }
+
   if (hasAddress && zone) {
     const addr = (zone.address || '').replace(/^г\s*Москва,?\s*/i, '').replace(/^Москва,?\s*/i, '').trim() || zone.address
     const time = zone.estimatedTime || DEFAULT_DELIVERY_TIME
     const price = zone.freeFrom != null && zone.price3h === 0 ? 'Бесплатно' : `${zone.price3h?.toLocaleString('ru-RU')} ₽`
 
     return (
-      <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={() => { setInputVal(''); setEditing(true) }}
+        className="flex items-center gap-2 transition-colors hover:opacity-80"
+      >
         <MapPin className="h-3.5 w-3.5 text-[#e8b4b8]" strokeWidth={1.5} />
         <span className="font-sans text-[13px] font-medium text-[#2d2d2d]">{addr}</span>
         <span className="font-sans text-[11px] text-[#999]">{time} · {price}</span>
-      </div>
+      </button>
     )
   }
 
   return (
     <button
       type="button"
-      onClick={() => window.dispatchEvent(new CustomEvent('fleur:open-address-sheet'))}
+      onClick={() => { setInputVal(''); setEditing(true) }}
       className="flex items-center gap-2 rounded-full bg-[#f3ede7] px-4 py-1.5 transition-colors hover:bg-[#ebe5de]"
     >
       <MapPin className="h-3.5 w-3.5 text-[#2d2d2d]" strokeWidth={1.5} />
@@ -382,11 +456,22 @@ function AddressContextBar({ zone, hasAddress }: { zone: any; hasAddress: boolea
   )
 }
 
-function ShopContextBar({ activeCategory, zone, hasAddress }: { activeCategory: string; zone: any; hasAddress: boolean }) {
+// Lazy-import AddressInput to avoid circular deps
+import { AddressInput as AddressInputComponent } from '@/components/AddressInput'
+
+function AddressContextBar({ zone, hasAddress }: { zone: any; hasAddress: boolean }) {
+  return <InlineAddressWidget zone={zone} hasAddress={hasAddress} />
+}
+
+function ShopContextBar({ zone, hasAddress }: { zone: any; hasAddress: boolean }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [searchVal, setSearchVal] = useState(searchParams?.get('q') || '')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+
+  // FIX 3: Read active category reactively from URL searchParams
+  const activeCategory = searchParams?.get('category') || ''
 
   useEffect(() => {
     setSearchVal(searchParams?.get('q') || '')
@@ -424,7 +509,24 @@ function ShopContextBar({ activeCategory, zone, hasAddress }: { activeCategory: 
       {/* Divider */}
       <div className="h-6 w-px bg-black/[0.08]" />
 
-      {/* Category pills */}
+      {/* FIX 2: Filters button */}
+      <button
+        onClick={() => setFiltersOpen(!filtersOpen)}
+        className={cn(
+          'flex shrink-0 items-center gap-1.5 rounded-[20px] border px-3.5 py-1 font-sans text-[11px] font-medium transition-all',
+          filtersOpen
+            ? 'border-[#e8b4b8] text-[#e8b4b8]'
+            : 'border-black/[0.08] text-[#5a5a5a] hover:border-[#e8b4b8] hover:text-[#e8b4b8]',
+        )}
+      >
+        <SlidersHorizontal className="h-3 w-3" strokeWidth={1.5} />
+        Фильтры
+      </button>
+
+      {/* Divider */}
+      <div className="h-6 w-px bg-black/[0.08]" />
+
+      {/* FIX 3: Category pills — active from searchParams */}
       <div className="flex items-center gap-1.5">
         {shopCategoryLinks.map((cat) => {
           const isActive = cat.slug === activeCategory || (cat.slug === '' && !activeCategory)
@@ -448,27 +550,10 @@ function ShopContextBar({ activeCategory, zone, hasAddress }: { activeCategory: 
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Compact address */}
-      {hasAddress && zone ? (
-        <div className="flex items-center gap-1.5 shrink-0">
-          <MapPin className="h-3.5 w-3.5 text-[#e8b4b8]" strokeWidth={1.5} />
-          <span className="font-sans text-[11px] font-medium text-[#2d2d2d]">
-            {(zone.address || '').replace(/^г\s*Москва,?\s*/i, '').replace(/^Москва,?\s*/i, '').trim() || zone.address}
-          </span>
-          <span className="font-sans text-[10px] text-[#999]">
-            {zone.estimatedTime || DEFAULT_DELIVERY_TIME} · {zone.freeFrom != null && zone.price3h === 0 ? 'Бесплатно' : `${zone.price3h?.toLocaleString('ru-RU')} ₽`}
-          </span>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => window.dispatchEvent(new CustomEvent('fleur:open-address-sheet'))}
-          className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#f3ede7] px-3 py-1 transition-colors hover:bg-[#ebe5de]"
-        >
-          <MapPin className="h-3 w-3 text-[#2d2d2d]" strokeWidth={1.5} />
-          <span className="font-sans text-[11px] font-medium text-[#2d2d2d]">Укажите адрес</span>
-        </button>
-      )}
+      {/* Compact address — clickable */}
+      <div className="shrink-0">
+        <InlineAddressWidget zone={zone} hasAddress={hasAddress} />
+      </div>
     </div>
   )
 }
