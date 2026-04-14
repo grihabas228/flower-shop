@@ -25,7 +25,6 @@ import { createUrl } from '@/utilities/createUrl'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import React, { Suspense } from 'react'
-import { AddressInput, type DaDataSuggestion } from '@/components/AddressInput'
 
 import { MobileMenu } from './MobileMenu'
 import { useFavorites } from '@/providers/FavoritesProvider'
@@ -350,18 +349,30 @@ function DesktopContextBar({
   return <InlineAddressWidget zone={zone} hasAddress={hasAddress} />
 }
 
-// ─── Inline Address Widget (shared) ──────────────────────────────────────────
+// ─── Compact Inline Address Widget for Desktop Header ────────────────────────
+
+const DADATA_URL = 'https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address'
 
 function InlineAddressWidget({ zone, hasAddress, compact }: { zone: any; hasAddress: boolean; compact?: boolean }) {
   const { setZone, markUnavailable } = useDelivery()
   const [editing, setEditing] = useState(false)
-  const [inputVal, setInputVal] = useState('')
+  const [query, setQuery] = useState('')
+  const [suggestions, setSuggestions] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (editing) setTimeout(() => inputRef.current?.focus(), 50)
+  }, [editing])
 
   // Close on Escape
   useEffect(() => {
     if (!editing) return
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setEditing(false) }
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') { setEditing(false); setSuggestions([]) } }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [editing])
@@ -370,36 +381,61 @@ function InlineAddressWidget({ zone, hasAddress, compact }: { zone: any; hasAddr
   useEffect(() => {
     if (!editing) return
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setEditing(false)
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setEditing(false); setSuggestions([])
+      }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [editing])
 
-  const handleSelect = useCallback(async (suggestion: DaDataSuggestion) => {
-    setInputVal(suggestion.value)
+  // Fetch DaData suggestions
+  const fetchSuggestions = useCallback(async (q: string) => {
+    const token = process.env.NEXT_PUBLIC_DADATA_TOKEN
+    if (!token || q.length < 2) { setSuggestions([]); return }
+    try {
+      abortRef.current?.abort()
+      abortRef.current = new AbortController()
+      const res = await fetch(DADATA_URL, {
+        method: 'POST', signal: abortRef.current.signal,
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Token ${token}` },
+        body: JSON.stringify({ query: q, count: 5, locations: [{ city: 'Москва' }, { region: 'Московская' }] }),
+      })
+      const data = await res.json()
+      setSuggestions(data.suggestions || [])
+    } catch { setSuggestions([]) }
+  }, [])
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value
+    setQuery(v)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => fetchSuggestions(v), 250)
+  }, [fetchSuggestions])
+
+  // Select a suggestion → resolve zone
+  const handleSelectSuggestion = useCallback(async (suggestion: any) => {
+    const addr = suggestion.value
+    setQuery(addr)
+    setSuggestions([])
     setEditing(false)
+    setLoading(true)
+
     try {
       const cleanRes = await fetch('/api/dadata/clean', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address: suggestion.value }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: addr }),
       })
       const cleanData = await cleanRes.json()
-      if (cleanData.error) return
+      if (cleanData.error) { setLoading(false); return }
 
       const zoneRes = await fetch('/api/delivery/zone-by-address', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          beltway_hit: cleanData.beltway_hit,
-          beltway_distance: cleanData.beltway_distance,
-          cartTotal: 0,
-        }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ beltway_hit: cleanData.beltway_hit, beltway_distance: cleanData.beltway_distance, cartTotal: 0 }),
       })
       const info = await zoneRes.json()
 
-      if (info.unavailable) { markUnavailable(suggestion.value); return }
+      if (info.unavailable) { markUnavailable(addr); setLoading(false); return }
       if (info.zone) {
         setZone({
           id: info.zone.id, zoneType: info.zone.zoneType,
@@ -408,37 +444,62 @@ function InlineAddressWidget({ zone, hasAddress, compact }: { zone: any; hasAddr
           availableIntervals: info.zone.availableIntervals ?? ['3h'],
           freeFrom: info.zone.freeFrom ?? null,
           estimatedTime: info.zone.estimatedTime ?? null,
-          address: suggestion.value,
+          address: addr,
         })
       }
-    } catch { /* ignore */ }
+    } catch { /* ignore */ } finally { setLoading(false) }
   }, [setZone, markUnavailable])
 
+  // ── Editing: compact inline input with dropdown ──
   if (editing) {
     return (
-      <div ref={containerRef} className="flex items-center gap-2">
-        <div className={compact ? 'w-[260px]' : 'w-[360px]'}>
-          <AddressInput
-            value={inputVal}
-            onChange={setInputVal}
-            onSelect={handleSelect}
-            placeholder="Укажите улицу и дом"
+      <div ref={containerRef} className="relative">
+        <div className="flex items-center gap-1.5">
+          <MapPin className="h-3.5 w-3.5 shrink-0 text-[#b0a99e]" strokeWidth={1.5} />
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={handleInputChange}
+            placeholder="Улица и дом..."
+            autoComplete="off"
+            className={cn(
+              'bg-transparent font-sans text-[#2d2d2d] placeholder:text-[#b0a99e] focus:outline-none',
+              compact ? 'w-[180px] text-[11px]' : 'w-[280px] text-[13px]',
+            )}
           />
+          <button onClick={() => { setEditing(false); setSuggestions([]) }} className="p-0.5 text-[#b0a99e] hover:text-[#2d2d2d]">
+            <X className="h-3 w-3" strokeWidth={2} />
+          </button>
         </div>
-        <button onClick={() => setEditing(false)} className="p-1 text-[#999] hover:text-[#2d2d2d]" aria-label="Закрыть">
-          <X className="h-3.5 w-3.5" strokeWidth={2} />
-        </button>
+
+        {/* Suggestions dropdown */}
+        {suggestions.length > 0 && (
+          <div className="absolute left-0 top-full z-[60] mt-2 w-[340px] rounded-xl border border-black/[0.06] bg-white py-1 shadow-xl">
+            {suggestions.map((s: any, i: number) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => handleSelectSuggestion(s)}
+                className="block w-full px-4 py-2.5 text-left font-sans text-[12px] text-[#2d2d2d] transition-colors hover:bg-[#f5f0ea]"
+              >
+                {s.value}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     )
   }
 
+  // ── Display: address pill or CTA ──
   if (hasAddress && zone) {
     const addr = (zone.address || '').replace(/^г\s*Москва,?\s*/i, '').replace(/^Москва,?\s*/i, '').trim() || zone.address
     const time = zone.estimatedTime || DEFAULT_DELIVERY_TIME
     const price = zone.freeFrom != null && zone.price3h === 0 ? 'Бесплатно' : `${zone.price3h?.toLocaleString('ru-RU')} ₽`
 
     return (
-      <button type="button" onClick={() => { setInputVal(''); setEditing(true) }} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+      <button type="button" onClick={() => { setQuery(''); setEditing(true) }} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
         <MapPin className="h-3.5 w-3.5 text-[#e8b4b8]" strokeWidth={1.5} />
         <span className={cn('font-sans font-medium text-[#2d2d2d]', compact ? 'text-[11px]' : 'text-[13px]')}>{addr}</span>
         <span className={cn('font-sans text-[#999]', compact ? 'text-[10px]' : 'text-[11px]')}>{time} · {price}</span>
@@ -447,7 +508,7 @@ function InlineAddressWidget({ zone, hasAddress, compact }: { zone: any; hasAddr
   }
 
   return (
-    <button type="button" onClick={() => { setInputVal(''); setEditing(true) }}
+    <button type="button" onClick={() => { setQuery(''); setEditing(true) }}
       className="flex items-center gap-2 rounded-full bg-[#f3ede7] px-4 py-1.5 hover:bg-[#ebe5de] transition-colors">
       <MapPin className="h-3.5 w-3.5 text-[#2d2d2d]" strokeWidth={1.5} />
       <span className={cn('font-sans font-medium text-[#2d2d2d]', compact ? 'text-[11px]' : 'text-[12px]')}>
