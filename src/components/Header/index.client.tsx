@@ -25,6 +25,7 @@ import { createUrl } from '@/utilities/createUrl'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import React, { Suspense } from 'react'
+import { AddressInput, type DaDataSuggestion } from '@/components/AddressInput'
 
 import { MobileMenu } from './MobileMenu'
 import { useFavorites } from '@/providers/FavoritesProvider'
@@ -297,7 +298,7 @@ export function HeaderClient({ header }: Props) {
 
         {/* ROW 2 — Context bar (sticky below row 1) */}
         {!isCartOrCheckout && (
-          <div className="fixed top-16 left-0 right-0 z-40 border-b border-black/[0.04] bg-white">
+          <div className="fixed top-16 left-0 right-0 z-40 border-b border-black/[0.04] bg-white" suppressHydrationWarning>
             <div className="mx-auto flex h-[46px] max-w-7xl items-center px-8">
               <Suspense fallback={null}>
                 <DesktopContextBar
@@ -346,19 +347,38 @@ function DesktopContextBar({
   if (isShopPage) {
     return <ShopContextBar zone={zone} hasAddress={hasAddress} />
   }
-  return <AddressContextBar zone={zone} hasAddress={hasAddress} />
+  return <InlineAddressWidget zone={zone} hasAddress={hasAddress} />
 }
 
-/** Shared address display — clickable to open inline editor */
-function InlineAddressWidget({ zone, hasAddress }: { zone: any; hasAddress: boolean }) {
+// ─── Inline Address Widget (shared) ──────────────────────────────────────────
+
+function InlineAddressWidget({ zone, hasAddress, compact }: { zone: any; hasAddress: boolean; compact?: boolean }) {
   const { setZone, markUnavailable } = useDelivery()
   const [editing, setEditing] = useState(false)
   const [inputVal, setInputVal] = useState('')
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  const handleSelect = useCallback(async (suggestion: any) => {
+  // Close on Escape
+  useEffect(() => {
+    if (!editing) return
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setEditing(false) }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [editing])
+
+  // Close on click outside
+  useEffect(() => {
+    if (!editing) return
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setEditing(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [editing])
+
+  const handleSelect = useCallback(async (suggestion: DaDataSuggestion) => {
     setInputVal(suggestion.value)
     setEditing(false)
-    // Resolve zone via API (same flow as AddressBottomSheet)
     try {
       const cleanRes = await fetch('/api/dadata/clean', {
         method: 'POST',
@@ -379,17 +399,11 @@ function InlineAddressWidget({ zone, hasAddress }: { zone: any; hasAddress: bool
       })
       const info = await zoneRes.json()
 
-      if (info.unavailable) {
-        markUnavailable(suggestion.value)
-        return
-      }
-
+      if (info.unavailable) { markUnavailable(suggestion.value); return }
       if (info.zone) {
         setZone({
-          id: info.zone.id,
-          zoneType: info.zone.zoneType,
-          price3h: info.zone.price3h ?? 0,
-          price1h: info.zone.price1h ?? null,
+          id: info.zone.id, zoneType: info.zone.zoneType,
+          price3h: info.zone.price3h ?? 0, price1h: info.zone.price1h ?? null,
           priceExact: info.zone.priceExact ?? null,
           availableIntervals: info.zone.availableIntervals ?? ['3h'],
           freeFrom: info.zone.freeFrom ?? null,
@@ -402,21 +416,16 @@ function InlineAddressWidget({ zone, hasAddress }: { zone: any; hasAddress: bool
 
   if (editing) {
     return (
-      <div className="flex items-center gap-2">
-        <div className="w-[320px]">
-          <AddressInputComponent
+      <div ref={containerRef} className="flex items-center gap-2">
+        <div className={compact ? 'w-[260px]' : 'w-[360px]'}>
+          <AddressInput
             value={inputVal}
             onChange={setInputVal}
             onSelect={handleSelect}
             placeholder="Укажите улицу и дом"
-            className="[&_input]:!h-8 [&_input]:!py-0 [&_input]:!text-[12px] [&_input]:!rounded-[20px] [&_input]:!border-black/[0.08] [&_input]:!pl-8 [&_svg]:!h-3.5 [&_svg]:!w-3.5"
           />
         </div>
-        <button
-          onClick={() => setEditing(false)}
-          className="p-1 text-[#999] hover:text-[#2d2d2d] transition-colors"
-          aria-label="Закрыть"
-        >
+        <button onClick={() => setEditing(false)} className="p-1 text-[#999] hover:text-[#2d2d2d]" aria-label="Закрыть">
           <X className="h-3.5 w-3.5" strokeWidth={2} />
         </button>
       </div>
@@ -429,38 +438,26 @@ function InlineAddressWidget({ zone, hasAddress }: { zone: any; hasAddress: bool
     const price = zone.freeFrom != null && zone.price3h === 0 ? 'Бесплатно' : `${zone.price3h?.toLocaleString('ru-RU')} ₽`
 
     return (
-      <button
-        type="button"
-        onClick={() => { setInputVal(''); setEditing(true) }}
-        className="flex items-center gap-2 transition-colors hover:opacity-80"
-      >
+      <button type="button" onClick={() => { setInputVal(''); setEditing(true) }} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
         <MapPin className="h-3.5 w-3.5 text-[#e8b4b8]" strokeWidth={1.5} />
-        <span className="font-sans text-[13px] font-medium text-[#2d2d2d]">{addr}</span>
-        <span className="font-sans text-[11px] text-[#999]">{time} · {price}</span>
+        <span className={cn('font-sans font-medium text-[#2d2d2d]', compact ? 'text-[11px]' : 'text-[13px]')}>{addr}</span>
+        <span className={cn('font-sans text-[#999]', compact ? 'text-[10px]' : 'text-[11px]')}>{time} · {price}</span>
       </button>
     )
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => { setInputVal(''); setEditing(true) }}
-      className="flex items-center gap-2 rounded-full bg-[#f3ede7] px-4 py-1.5 transition-colors hover:bg-[#ebe5de]"
-    >
+    <button type="button" onClick={() => { setInputVal(''); setEditing(true) }}
+      className="flex items-center gap-2 rounded-full bg-[#f3ede7] px-4 py-1.5 hover:bg-[#ebe5de] transition-colors">
       <MapPin className="h-3.5 w-3.5 text-[#2d2d2d]" strokeWidth={1.5} />
-      <span className="font-sans text-[12px] font-medium text-[#2d2d2d]">
-        Укажите адрес доставки для расчёта стоимости
+      <span className={cn('font-sans font-medium text-[#2d2d2d]', compact ? 'text-[11px]' : 'text-[12px]')}>
+        {compact ? 'Укажите адрес' : 'Укажите адрес доставки для расчёта стоимости'}
       </span>
     </button>
   )
 }
 
-// Lazy-import AddressInput to avoid circular deps
-import { AddressInput as AddressInputComponent } from '@/components/AddressInput'
-
-function AddressContextBar({ zone, hasAddress }: { zone: any; hasAddress: boolean }) {
-  return <InlineAddressWidget zone={zone} hasAddress={hasAddress} />
-}
+// ─── Shop Context Bar ────────────────────────────────────────────────────────
 
 function ShopContextBar({ zone, hasAddress }: { zone: any; hasAddress: boolean }) {
   const router = useRouter()
@@ -468,18 +465,31 @@ function ShopContextBar({ zone, hasAddress }: { zone: any; hasAddress: boolean }
   const [searchVal, setSearchVal] = useState(searchParams?.get('q') || '')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const filtersRef = useRef<HTMLDivElement>(null)
 
-  // FIX 3: Read active category reactively from URL searchParams
   const activeCategory = searchParams?.get('category') || ''
 
+  useEffect(() => { setSearchVal(searchParams?.get('q') || '') }, [searchParams])
+
+  // Close filters on outside click
   useEffect(() => {
-    setSearchVal(searchParams?.get('q') || '')
-  }, [searchParams])
+    if (!filtersOpen) return
+    const handler = (e: MouseEvent) => {
+      if (filtersRef.current && !filtersRef.current.contains(e.target as Node)) setFiltersOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [filtersOpen])
 
   const pushSearch = useCallback((q: string) => {
     const params = new URLSearchParams(searchParams?.toString() || '')
-    if (q.trim()) params.set('q', q.trim())
-    else params.delete('q')
+    if (q.trim()) params.set('q', q.trim()); else params.delete('q')
+    router.push(createUrl('/shop', params))
+  }, [router, searchParams])
+
+  const pushFilter = useCallback((key: string, val: string) => {
+    const params = new URLSearchParams(searchParams?.toString() || '')
+    if (val) params.set(key, val); else params.delete(key)
     router.push(createUrl('/shop', params))
   }, [router, searchParams])
 
@@ -491,68 +501,131 @@ function ShopContextBar({ zone, hasAddress }: { zone: any; hasAddress: boolean }
   }, [pushSearch])
 
   return (
-    <div className="flex w-full items-center gap-4">
-      {/* Search */}
-      <div className="relative w-[220px] shrink-0">
-        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#b0a99e]" strokeWidth={1.5} />
-        <input
-          type="text"
-          value={searchVal}
-          onChange={handleSearchChange}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (debounceRef.current) clearTimeout(debounceRef.current); pushSearch(searchVal) } }}
-          placeholder="Поиск букетов..."
-          className="h-8 w-full rounded-[20px] border border-black/[0.08] bg-transparent pl-9 pr-3 font-sans text-[12px] text-[#2d2d2d] placeholder:text-[#b0a99e] transition-colors focus:border-[#e8b4b8] focus:outline-none"
-        />
+    <div className="relative w-full">
+      <div className="flex w-full items-center gap-4">
+        {/* Search */}
+        <div className="relative w-[220px] shrink-0">
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#b0a99e]" strokeWidth={1.5} />
+          <input type="text" value={searchVal} onChange={handleSearchChange}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (debounceRef.current) clearTimeout(debounceRef.current); pushSearch(searchVal) } }}
+            placeholder="Поиск букетов..."
+            className="h-8 w-full rounded-[20px] border border-black/[0.08] bg-transparent pl-9 pr-3 font-sans text-[12px] text-[#2d2d2d] placeholder:text-[#b0a99e] focus:border-[#e8b4b8] focus:outline-none transition-colors"
+          />
+        </div>
+
+        <div className="h-6 w-px bg-black/[0.08]" />
+
+        {/* Filters toggle */}
+        <button onClick={() => setFiltersOpen(!filtersOpen)}
+          className={cn(
+            'flex shrink-0 items-center gap-1.5 rounded-[20px] border px-3.5 py-1 font-sans text-[11px] font-medium transition-all',
+            filtersOpen ? 'border-[#e8b4b8] text-[#e8b4b8]' : 'border-black/[0.08] text-[#5a5a5a] hover:border-[#e8b4b8] hover:text-[#e8b4b8]',
+          )}>
+          <SlidersHorizontal className="h-3 w-3" strokeWidth={1.5} />
+          Фильтры
+        </button>
+
+        <div className="h-6 w-px bg-black/[0.08]" />
+
+        {/* Categories */}
+        <div className="flex items-center gap-1.5">
+          {shopCategoryLinks.map((cat) => {
+            const isActive = cat.slug === activeCategory || (cat.slug === '' && !activeCategory)
+            return (
+              <Link key={cat.slug} href={cat.href}
+                className={cn(
+                  'rounded-full px-3.5 py-1 font-sans text-[12px] font-medium transition-all whitespace-nowrap',
+                  isActive ? 'bg-[#2d2d2d] text-[#faf5f0]' : 'border border-black/[0.08] text-[#5a5a5a] hover:border-[#e8b4b8] hover:text-[#e8b4b8]',
+                )}>
+                {cat.label}
+              </Link>
+            )
+          })}
+        </div>
+
+        <div className="flex-1" />
+
+        {/* Compact address */}
+        <div className="shrink-0">
+          <InlineAddressWidget zone={zone} hasAddress={hasAddress} compact />
+        </div>
       </div>
 
-      {/* Divider */}
-      <div className="h-6 w-px bg-black/[0.08]" />
+      {/* Filters dropdown panel */}
+      {filtersOpen && (
+        <div ref={filtersRef}
+          className="absolute left-0 right-0 top-full z-[39] border-b border-black/[0.04] bg-white px-8 py-4 shadow-sm">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3">
+            {/* Sort */}
+            <FilterPill label="Сортировка" paramKey="sort" options={[
+              { label: 'Новинки', value: '-createdAt' },
+              { label: 'Цена ↑', value: 'priceInUSD' },
+              { label: 'Цена ↓', value: '-priceInUSD' },
+            ]} currentParams={searchParams} onApply={pushFilter} />
 
-      {/* FIX 2: Filters button */}
-      <button
-        onClick={() => setFiltersOpen(!filtersOpen)}
+            {/* Price range */}
+            <FilterPill label="Цена" paramKey="priceMax" options={[
+              { label: 'до 3 000 ₽', value: '3000' },
+              { label: 'до 5 000 ₽', value: '5000' },
+              { label: 'до 10 000 ₽', value: '10000' },
+            ]} currentParams={searchParams} onApply={pushFilter} />
+
+            <button onClick={() => { setFiltersOpen(false); router.push('/shop') }}
+              className="ml-auto font-sans text-[11px] text-[#999] hover:text-[#2d2d2d] transition-colors">
+              Сбросить всё
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Filter Pill ─────────────────────────────────────────────────────────────
+
+function FilterPill({
+  label, paramKey, options, currentParams, onApply,
+}: {
+  label: string
+  paramKey: string
+  options: { label: string; value: string }[]
+  currentParams: ReturnType<typeof useSearchParams>
+  onApply: (key: string, val: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const current = currentParams?.get(paramKey) || ''
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => setOpen(!open)}
         className={cn(
-          'flex shrink-0 items-center gap-1.5 rounded-[20px] border px-3.5 py-1 font-sans text-[11px] font-medium transition-all',
-          filtersOpen
-            ? 'border-[#e8b4b8] text-[#e8b4b8]'
-            : 'border-black/[0.08] text-[#5a5a5a] hover:border-[#e8b4b8] hover:text-[#e8b4b8]',
-        )}
-      >
-        <SlidersHorizontal className="h-3 w-3" strokeWidth={1.5} />
-        Фильтры
+          'flex items-center gap-1 rounded-full border px-3 py-1 font-sans text-[11px] font-medium transition-all',
+          current ? 'border-[#e8b4b8] text-[#e8b4b8]' : 'border-black/[0.08] text-[#5a5a5a] hover:border-[#c9c4be]',
+        )}>
+        {label}
       </button>
-
-      {/* Divider */}
-      <div className="h-6 w-px bg-black/[0.08]" />
-
-      {/* FIX 3: Category pills — active from searchParams */}
-      <div className="flex items-center gap-1.5">
-        {shopCategoryLinks.map((cat) => {
-          const isActive = cat.slug === activeCategory || (cat.slug === '' && !activeCategory)
-          return (
-            <Link
-              key={cat.slug}
-              href={cat.href}
-              className={cn(
-                'rounded-full px-3.5 py-1 font-sans text-[12px] font-medium transition-all whitespace-nowrap',
-                isActive
-                  ? 'bg-[#2d2d2d] text-[#faf5f0]'
-                  : 'border border-black/[0.08] text-[#5a5a5a] hover:border-[#e8b4b8] hover:text-[#e8b4b8]',
-              )}
-            >
-              {cat.label}
-            </Link>
-          )
-        })}
-      </div>
-
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Compact address — clickable */}
-      <div className="shrink-0">
-        <InlineAddressWidget zone={zone} hasAddress={hasAddress} />
-      </div>
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 min-w-[140px] rounded-xl border border-black/[0.06] bg-white py-1 shadow-lg">
+          <button onClick={() => { onApply(paramKey, ''); setOpen(false) }}
+            className={cn('block w-full px-3 py-1.5 text-left font-sans text-[11px] hover:bg-[#f5f0ea] transition-colors', !current && 'text-[#e8b4b8] font-medium')}>
+            Все
+          </button>
+          {options.map((opt) => (
+            <button key={opt.value} onClick={() => { onApply(paramKey, opt.value); setOpen(false) }}
+              className={cn('block w-full px-3 py-1.5 text-left font-sans text-[11px] hover:bg-[#f5f0ea] transition-colors', current === opt.value && 'text-[#e8b4b8] font-medium')}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
