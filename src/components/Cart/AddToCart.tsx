@@ -45,7 +45,7 @@ export function AddToCart({ product }: Props) {
         product: product.id,
         variant: selectedVariant?.id ?? undefined,
       }).then(() => {
-        toast.success('Item added to cart.')
+        toast.success('Добавлено в корзину')
       })
     },
     [addItem, product, selectedVariant],
@@ -96,7 +96,7 @@ export function AddToCart({ product }: Props) {
 
   return (
     <Button
-      aria-label="Add to cart"
+      aria-label="В корзину"
       variant={'outline'}
       className={clsx({
         'hover:opacity-90': true,
@@ -105,7 +105,7 @@ export function AddToCart({ product }: Props) {
       onClick={addToCart}
       type="submit"
     >
-      Add To Cart
+      В корзину
     </Button>
   )
 }

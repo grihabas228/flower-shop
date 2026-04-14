@@ -1,7 +1,7 @@
 'use client'
 
 import type { Product, Variant, VariantOption, VariantType } from '@/payload-types'
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { ProductInfo, compactLabel } from './ProductInfo'
 import { FloatingCartL, type VariantPill } from './FloatingCartL'
 
@@ -152,27 +152,6 @@ export function ProductDetailClient({ product }: Props) {
 
     return result
   }, [hasVariants, variants, visibleTypeIds, hiddenTypeIds, displayType])
-
-  // Debug: remove after verifying
-  useEffect(() => {
-    console.log('[ProductDetailClient] hasVariants:', hasVariants)
-    console.log('[ProductDetailClient] variants count:', variants.length)
-    console.log('[ProductDetailClient] variantTypes:', variantTypes.map(t => ({ id: t.id, name: t.name })))
-    console.log('[ProductDetailClient] visibleVariantTypes:', visibleVariantTypes.map(t => ({ id: t.id, name: t.name })))
-    console.log('[ProductDetailClient] visibleTypeIds:', [...visibleTypeIds])
-    console.log('[ProductDetailClient] hiddenTypeIds:', [...hiddenTypeIds])
-    console.log('[ProductDetailClient] pills:', pills)
-    if (variants.length > 0) {
-      const firstVariant = variants[0]
-      const opts = (firstVariant.options || []).filter((o): o is VariantOption => typeof o === 'object')
-      console.log('[ProductDetailClient] first variant options:', opts.map(o => ({
-        id: o.id,
-        label: o.label,
-        variantType: o.variantType,
-        variantTypeType: typeof o.variantType,
-      })))
-    }
-  }, [hasVariants, variants, variantTypes, visibleVariantTypes, visibleTypeIds, hiddenTypeIds, pills])
 
   return (
     <>
