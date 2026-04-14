@@ -23,6 +23,7 @@ import { useDelivery, DEFAULT_DELIVERY_TIME } from '@/providers/DeliveryProvider
 import { AddressInput, type DaDataSuggestion } from '@/components/AddressInput'
 import { useOptimisticCart } from '@/providers/OptimisticCartProvider'
 import { createUrl } from '@/utilities/createUrl'
+import { sorting, priceRanges, occasions, colors, recipients } from '@/lib/constants'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import React, { Suspense } from 'react'
@@ -576,17 +577,34 @@ function ShopContextBar({ zone, hasAddress }: { zone: any; hasAddress: boolean }
   const [searchVal, setSearchVal] = useState(searchParams?.get('q') || '')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const filtersRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
 
   const activeCategory = searchParams?.get('category') || ''
 
+  // Read active filters from URL
+  const activeSort = searchParams?.get('sort') || ''
+  const activePriceMin = searchParams?.get('priceMin') || ''
+  const activePriceMax = searchParams?.get('priceMax') || ''
+  const activeOccasion = searchParams?.get('occasion') || ''
+  const activeColor = searchParams?.get('color') || ''
+  const activeRecipient = searchParams?.get('recipient') || ''
+
+  const activeFilterCount = [activeSort, activePriceMin, activeOccasion, activeColor, activeRecipient].filter(Boolean).length
+
   useEffect(() => { setSearchVal(searchParams?.get('q') || '') }, [searchParams])
 
-  // Close filters on outside click
+  // Close filters on outside click — exclude both panel AND button to prevent toggle race
   useEffect(() => {
     if (!filtersOpen) return
     const handler = (e: MouseEvent) => {
-      if (filtersRef.current && !filtersRef.current.contains(e.target as Node)) setFiltersOpen(false)
+      const target = e.target as Node
+      if (
+        panelRef.current && !panelRef.current.contains(target) &&
+        buttonRef.current && !buttonRef.current.contains(target)
+      ) {
+        setFiltersOpen(false)
+      }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -595,13 +613,7 @@ function ShopContextBar({ zone, hasAddress }: { zone: any; hasAddress: boolean }
   const pushSearch = useCallback((q: string) => {
     const params = new URLSearchParams(searchParams?.toString() || '')
     if (q.trim()) params.set('q', q.trim()); else params.delete('q')
-    router.push(createUrl('/shop', params))
-  }, [router, searchParams])
-
-  const pushFilter = useCallback((key: string, val: string) => {
-    const params = new URLSearchParams(searchParams?.toString() || '')
-    if (val) params.set(key, val); else params.delete(key)
-    router.push(createUrl('/shop', params))
+    router.push(createUrl('/shop', params), { scroll: false })
   }, [router, searchParams])
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -610,6 +622,43 @@ function ShopContextBar({ zone, hasAddress }: { zone: any; hasAddress: boolean }
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => pushSearch(v), 300)
   }, [pushSearch])
+
+  // Toggle a single-value filter param
+  const toggleFilter = useCallback((key: string, value: string) => {
+    const params = new URLSearchParams(searchParams?.toString() || '')
+    if (params.get(key) === value) {
+      params.delete(key)
+    } else if (value) {
+      params.set(key, value)
+    } else {
+      params.delete(key)
+    }
+    router.push(createUrl('/shop', params), { scroll: false })
+  }, [router, searchParams])
+
+  // Toggle a price range (sets both priceMin + priceMax)
+  const togglePriceRange = useCallback((min: number, max: number | null) => {
+    const params = new URLSearchParams(searchParams?.toString() || '')
+    if (activePriceMin === String(min)) {
+      params.delete('priceMin')
+      params.delete('priceMax')
+    } else {
+      params.set('priceMin', String(min))
+      if (max !== null) params.set('priceMax', String(max)); else params.delete('priceMax')
+    }
+    router.push(createUrl('/shop', params), { scroll: false })
+  }, [router, searchParams, activePriceMin])
+
+  // Clear all filters (keep search query and category)
+  const clearFilters = useCallback(() => {
+    const params = new URLSearchParams()
+    const q = searchParams?.get('q')
+    const cat = searchParams?.get('category')
+    if (q) params.set('q', q)
+    if (cat) params.set('category', cat)
+    router.push(createUrl('/shop', params), { scroll: false })
+    setFiltersOpen(false)
+  }, [router, searchParams])
 
   return (
     <div className="relative w-full">
@@ -627,13 +676,23 @@ function ShopContextBar({ zone, hasAddress }: { zone: any; hasAddress: boolean }
         <div className="h-6 w-px bg-black/[0.08]" />
 
         {/* Filters toggle */}
-        <button onClick={() => setFiltersOpen(!filtersOpen)}
+        <button
+          ref={buttonRef}
+          onClick={() => setFiltersOpen((v) => !v)}
           className={cn(
-            'flex shrink-0 items-center gap-1.5 rounded-[20px] border px-3.5 py-1 font-sans text-[11px] font-medium transition-all',
-            filtersOpen ? 'border-[#e8b4b8] text-[#e8b4b8]' : 'border-black/[0.08] text-[#5a5a5a] hover:border-[#e8b4b8] hover:text-[#e8b4b8]',
-          )}>
+            'relative flex shrink-0 items-center gap-1.5 rounded-[20px] border px-3.5 py-1 font-sans text-[11px] font-medium transition-all',
+            filtersOpen || activeFilterCount > 0
+              ? 'border-[#e8b4b8] text-[#e8b4b8]'
+              : 'border-black/[0.08] text-[#5a5a5a] hover:border-[#e8b4b8] hover:text-[#e8b4b8]',
+          )}
+        >
           <SlidersHorizontal className="h-3 w-3" strokeWidth={1.5} />
           Фильтры
+          {activeFilterCount > 0 && (
+            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e8b4b8] px-1 text-[9px] font-semibold text-white">
+              {activeFilterCount}
+            </span>
+          )}
         </button>
 
         <div className="h-6 w-px bg-black/[0.08]" />
@@ -662,79 +721,134 @@ function ShopContextBar({ zone, hasAddress }: { zone: any; hasAddress: boolean }
         </div>
       </div>
 
-      {/* Filters dropdown panel */}
+      {/* ── Filters panel ── */}
       {filtersOpen && (
-        <div ref={filtersRef}
-          className="absolute left-0 right-0 top-full z-[39] border-b border-black/[0.04] bg-white px-8 py-4 shadow-sm">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3">
+        <div
+          ref={panelRef}
+          className="absolute left-0 right-0 top-full z-[39] border-b border-black/[0.06] bg-white px-8 py-5 shadow-[0_4px_16px_rgba(0,0,0,0.06)]"
+        >
+          <div className="mx-auto max-w-7xl space-y-3.5">
             {/* Sort */}
-            <FilterPill label="Сортировка" paramKey="sort" options={[
-              { label: 'Новинки', value: '-createdAt' },
-              { label: 'Цена ↑', value: 'priceInUSD' },
-              { label: 'Цена ↓', value: '-priceInUSD' },
-            ]} currentParams={searchParams} onApply={pushFilter} />
+            <div className="flex items-start gap-3">
+              <span className="w-[80px] shrink-0 pt-1 font-sans text-[11px] font-medium text-[#999]">Сортировка</span>
+              <div className="flex flex-wrap gap-1.5">
+                {sorting.map((s) => (
+                  <button
+                    key={s.title}
+                    onClick={() => toggleFilter('sort', s.slug || '')}
+                    className={cn(
+                      'rounded-full border px-3 py-1 font-sans text-[11px] transition-all',
+                      activeSort === (s.slug || '')
+                        ? 'border-[#2d2d2d] bg-[#2d2d2d] text-white'
+                        : 'border-[#e8e4de] text-[#5a5a5a] hover:border-[#c9c4be]',
+                    )}
+                  >
+                    {s.title}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-            {/* Price range */}
-            <FilterPill label="Цена" paramKey="priceMax" options={[
-              { label: 'до 3 000 ₽', value: '3000' },
-              { label: 'до 5 000 ₽', value: '5000' },
-              { label: 'до 10 000 ₽', value: '10000' },
-            ]} currentParams={searchParams} onApply={pushFilter} />
+            {/* Price */}
+            <div className="flex items-start gap-3">
+              <span className="w-[80px] shrink-0 pt-1 font-sans text-[11px] font-medium text-[#999]">Цена</span>
+              <div className="flex flex-wrap gap-1.5">
+                {priceRanges.map((r) => (
+                  <button
+                    key={r.label}
+                    onClick={() => togglePriceRange(r.min, r.max)}
+                    className={cn(
+                      'rounded-full border px-3 py-1 font-sans text-[11px] transition-all',
+                      activePriceMin === String(r.min)
+                        ? 'border-[#2d2d2d] bg-[#2d2d2d] text-white'
+                        : 'border-[#e8e4de] text-[#5a5a5a] hover:border-[#c9c4be]',
+                    )}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-            <button onClick={() => { setFiltersOpen(false); router.push('/shop') }}
-              className="ml-auto font-sans text-[11px] text-[#999] hover:text-[#2d2d2d] transition-colors">
-              Сбросить всё
-            </button>
+            {/* Occasion */}
+            <div className="flex items-start gap-3">
+              <span className="w-[80px] shrink-0 pt-1 font-sans text-[11px] font-medium text-[#999]">Повод</span>
+              <div className="flex flex-wrap gap-1.5">
+                {occasions.map((occ) => (
+                  <button
+                    key={occ}
+                    onClick={() => toggleFilter('occasion', activeOccasion === occ ? '' : occ)}
+                    className={cn(
+                      'rounded-full border px-3 py-1 font-sans text-[11px] transition-all',
+                      activeOccasion === occ
+                        ? 'border-[#2d2d2d] bg-[#2d2d2d] text-white'
+                        : 'border-[#e8e4de] text-[#5a5a5a] hover:border-[#c9c4be]',
+                    )}
+                  >
+                    {occ}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Color */}
+            <div className="flex items-start gap-3">
+              <span className="w-[80px] shrink-0 pt-1 font-sans text-[11px] font-medium text-[#999]">Цвет</span>
+              <div className="flex flex-wrap gap-1.5">
+                {colors.map((c) => (
+                  <button
+                    key={c.value}
+                    onClick={() => toggleFilter('color', activeColor === c.value ? '' : c.value)}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-full border px-3 py-1 font-sans text-[11px] transition-all',
+                      activeColor === c.value
+                        ? 'border-[#2d2d2d] bg-[#2d2d2d] text-white'
+                        : 'border-[#e8e4de] text-[#5a5a5a] hover:border-[#c9c4be]',
+                    )}
+                  >
+                    <span
+                      className="h-3 w-3 shrink-0 rounded-full border border-white/20"
+                      style={{ background: c.hex }}
+                    />
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Recipient */}
+            <div className="flex items-start gap-3">
+              <span className="w-[80px] shrink-0 pt-1 font-sans text-[11px] font-medium text-[#999]">Для кого</span>
+              <div className="flex flex-wrap gap-1.5">
+                {recipients.map((rec) => (
+                  <button
+                    key={rec}
+                    onClick={() => toggleFilter('recipient', activeRecipient === rec ? '' : rec)}
+                    className={cn(
+                      'rounded-full border px-3 py-1 font-sans text-[11px] transition-all',
+                      activeRecipient === rec
+                        ? 'border-[#2d2d2d] bg-[#2d2d2d] text-white'
+                        : 'border-[#e8e4de] text-[#5a5a5a] hover:border-[#c9c4be]',
+                    )}
+                  >
+                    {rec}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Clear all */}
+            {activeFilterCount > 0 && (
+              <div className="flex justify-end border-t border-[#e8e4de]/50 pt-3">
+                <button
+                  onClick={clearFilters}
+                  className="font-sans text-[11px] text-[#999] transition-colors hover:text-[#2d2d2d]"
+                >
+                  Сбросить все фильтры
+                </button>
+              </div>
+            )}
           </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─── Filter Pill ─────────────────────────────────────────────────────────────
-
-function FilterPill({
-  label, paramKey, options, currentParams, onApply,
-}: {
-  label: string
-  paramKey: string
-  options: { label: string; value: string }[]
-  currentParams: ReturnType<typeof useSearchParams>
-  onApply: (key: string, val: string) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const current = currentParams?.get(paramKey) || ''
-
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open])
-
-  return (
-    <div ref={ref} className="relative">
-      <button onClick={() => setOpen(!open)}
-        className={cn(
-          'flex items-center gap-1 rounded-full border px-3 py-1 font-sans text-[11px] font-medium transition-all',
-          current ? 'border-[#e8b4b8] text-[#e8b4b8]' : 'border-black/[0.08] text-[#5a5a5a] hover:border-[#c9c4be]',
-        )}>
-        {label}
-      </button>
-      {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 min-w-[140px] rounded-xl border border-black/[0.06] bg-white py-1 shadow-lg">
-          <button onClick={() => { onApply(paramKey, ''); setOpen(false) }}
-            className={cn('block w-full px-3 py-1.5 text-left font-sans text-[11px] hover:bg-[#f5f0ea] transition-colors', !current && 'text-[#e8b4b8] font-medium')}>
-            Все
-          </button>
-          {options.map((opt) => (
-            <button key={opt.value} onClick={() => { onApply(paramKey, opt.value); setOpen(false) }}
-              className={cn('block w-full px-3 py-1.5 text-left font-sans text-[11px] hover:bg-[#f5f0ea] transition-colors', current === opt.value && 'text-[#e8b4b8] font-medium')}>
-              {opt.label}
-            </button>
-          ))}
         </div>
       )}
     </div>
