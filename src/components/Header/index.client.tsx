@@ -657,7 +657,6 @@ function ShopContextBar({ zone, hasAddress }: { zone: any; hasAddress: boolean }
     if (q) params.set('q', q)
     if (cat) params.set('category', cat)
     router.push(createUrl('/shop', params), { scroll: false })
-    setFiltersOpen(false)
   }, [router, searchParams])
 
   return (
