@@ -368,60 +368,6 @@ export function HeroSection({ slides }: Props) {
               />
             </div>
 
-            {/* Delivery info */}
-            <div className="p-4 pt-3">
-              {deliveryInfo && addressSelected ? (
-                deliveryInfo.unavailable ? (
-                  <div className="flex items-center gap-2.5 rounded-xl bg-red-50 px-4 py-3">
-                    <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
-                    <p className="font-sans text-[13px] text-red-600">
-                      {deliveryInfo.message || 'Доставка в этот район пока недоступна'}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="rounded-xl bg-gradient-to-br from-[#e8b4b8]/10 to-[#e8b4b8]/5 px-4 py-3">
-                    <p className="font-sans text-[13px] font-medium text-[#2d2d2d]">
-                      Доставка: {deliveryInfo.zone?.estimatedTime} · {deliveryInfo.zone?.price3h === 0 ? 'Бесплатно' : `${deliveryInfo.zone?.price3h} \u20BD`}
-                    </p>
-                    {deliveryInfo.zone?.freeFrom && deliveryInfo.zone.price3h > 0 && (
-                      <p className="font-sans text-[12px] text-[#8a8a8a] mt-0.5">
-                        Бесплатная доставка от {deliveryInfo.zone.freeFrom.toLocaleString('ru-RU')} &#8381;
-                      </p>
-                    )}
-                  </div>
-                )
-              ) : (
-                <>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#f0ebe3]">
-                        <Truck className="h-4 w-4 text-[#5a5a5a]" strokeWidth={1.5} />
-                      </div>
-                      <div>
-                        <p className="font-sans text-[14px] text-[#2d2d2d]">Доставка от 2 часов</p>
-                        <p className="font-sans text-[12px] text-[#8a8a8a]">Курьером к двери</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#f0ebe3]">
-                        <Clock className="h-4 w-4 text-[#5a5a5a]" strokeWidth={1.5} />
-                      </div>
-                      <div>
-                        <p className="font-sans text-[14px] text-[#2d2d2d]">С 8:00 до 22:00</p>
-                        <p className="font-sans text-[12px] text-[#8a8a8a]">Ежедневно без выходных</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 rounded-xl bg-gradient-to-br from-[#e8b4b8]/10 to-[#e8b4b8]/5 px-4 py-3">
-                    <p className="font-sans text-[13px] font-medium text-[#2d2d2d]">
-                      Бесплатная доставка от 5 000 &#8381;
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
           </div>
         </motion.div>
 
