@@ -62,7 +62,7 @@ const defaultSlide: PromoSlide = {
 const SHOP_COORDS: [number, number] = [55.764, 37.606]
 
 export function HeroSection({ slides }: Props) {
-  const { setZone, markUnavailable, clear: clearDelivery } = useDelivery()
+  const { zone: contextZone, setZone, markUnavailable, clear: clearDelivery } = useDelivery()
   const displaySlides = slides.length > 0 ? slides : [defaultSlide]
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: displaySlides.length > 1 })
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -76,6 +76,8 @@ export function HeroSection({ slides }: Props) {
   const [deliveryInfo, setDeliveryInfo] = useState<DeliveryZoneInfo | null>(null)
   const [addressSelected, setAddressSelected] = useState(false)
   const hydratedRef = useRef(false)
+  // Tracks addresses set by HeroSection itself to avoid sync loops
+  const lastInternalAddressRef = useRef<string | null>(null)
 
   // Hydrate from localStorage on mount — restore previously selected address
   // without re-hitting any API.
@@ -106,6 +108,7 @@ export function HeroSection({ slides }: Props) {
       if (stored.zone_result) {
         setDeliveryInfo(stored.zone_result)
         setAddressSelected(true)
+        lastInternalAddressRef.current = stored.address // Mark hydration as internal
 
         // Re-populate the global delivery context so product cards pick up
         // the cached estimatedTime immediately on first paint.
@@ -129,6 +132,68 @@ export function HeroSection({ slides }: Props) {
       // ignore corrupted storage
     }
   }, [setZone, markUnavailable])
+
+  // Sync local state when zone changes from external source (e.g., header widget)
+  useEffect(() => {
+    if (!hydratedRef.current) return // Wait for hydration first
+
+    const externalAddress = contextZone?.address ?? null
+
+    // Skip if this was our own change
+    if (externalAddress === lastInternalAddressRef.current) return
+
+    if (!contextZone) {
+      // External clear
+      setAddressValue('')
+      setAddressSelected(false)
+      setDeliveryInfo(null)
+      setMapCenter(SHOP_COORDS)
+      setMapMarker(SHOP_COORDS)
+      setMapZoom(13)
+      setMarkerTitle('FLEUR')
+      setMarkerBody('Москва, ул. Цветочная, д. 12')
+      lastInternalAddressRef.current = null
+      return
+    }
+
+    // External address set — update local state
+    setAddressValue(contextZone.address)
+    setAddressSelected(true)
+    setDeliveryInfo({
+      unavailable: false,
+      zone: {
+        id: contextZone.id,
+        zoneType: contextZone.zoneType,
+        price3h: contextZone.price3h,
+        price1h: contextZone.price1h,
+        priceExact: contextZone.priceExact,
+        availableIntervals: contextZone.availableIntervals,
+        freeFrom: contextZone.freeFrom,
+        estimatedTime: contextZone.estimatedTime,
+      },
+    })
+
+    // Restore map coordinates from localStorage (saved by header widget)
+    try {
+      const raw = window.localStorage.getItem(LAST_ADDRESS_KEY)
+      if (raw) {
+        const stored = JSON.parse(raw) as StoredLastAddress
+        if (stored.geo_lat && stored.geo_lon) {
+          const lat = parseFloat(stored.geo_lat)
+          const lon = parseFloat(stored.geo_lon)
+          if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
+            setMapCenter([lat, lon])
+            setMapMarker([lat, lon])
+            setMapZoom(15)
+            setMarkerTitle(contextZone.address)
+            setMarkerBody('')
+          }
+        }
+      }
+    } catch {}
+
+    lastInternalAddressRef.current = externalAddress
+  }, [contextZone])
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return
@@ -199,6 +264,9 @@ export function HeroSection({ slides }: Props) {
       const info = await zoneRes.json()
       setDeliveryInfo(info)
 
+      // Mark as internal change to prevent sync loop
+      lastInternalAddressRef.current = suggestion.value
+
       // Sync to global delivery context so product cards can read estimatedTime
       if (info.unavailable) {
         markUnavailable(suggestion.value)
@@ -236,6 +304,7 @@ export function HeroSection({ slides }: Props) {
   }, [setZone, markUnavailable])
 
   const handleClearAddress = useCallback(() => {
+    lastInternalAddressRef.current = null // Mark as internal clear
     setAddressValue('')
     setAddressSelected(false)
     setDeliveryInfo(null)

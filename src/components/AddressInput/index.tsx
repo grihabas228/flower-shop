@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { MapPin } from 'lucide-react'
+import { MapPin, X } from 'lucide-react'
+import { cn } from '@/utilities/cn'
 
 export type DaDataSuggestion = {
   value: string
@@ -28,6 +29,12 @@ type Props = {
   placeholder?: string
   className?: string
   hint?: string
+  /** 'default' = HeroSection/mobile style, 'compact' = header pill style */
+  variant?: 'default' | 'compact'
+  /** Show X button; called on click */
+  onClose?: () => void
+  /** Auto-focus input on mount */
+  autoFocus?: boolean
 }
 
 const DADATA_URL = 'https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address'
@@ -39,7 +46,11 @@ export function AddressInput({
   placeholder = 'Укажите свой адрес',
   className,
   hint,
+  variant = 'default',
+  onClose,
+  autoFocus,
 }: Props) {
+  const isCompact = variant === 'compact'
   const [suggestions, setSuggestions] = useState<DaDataSuggestion[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
@@ -146,9 +157,16 @@ export function AddressInput({
   }, [])
 
   return (
-    <div ref={containerRef} className={`relative ${className ?? ''}`}>
+    <div ref={containerRef} className={cn('relative', className)}>
       <div className="relative">
-        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
+        <MapPin
+          className={cn(
+            'absolute top-1/2 -translate-y-1/2',
+            isCompact
+              ? 'left-3 w-3.5 h-3.5 text-[#b0a99e]'
+              : 'left-4 w-4 h-4 text-muted-foreground/50',
+          )}
+        />
         <input
           ref={inputRef}
           type="text"
@@ -158,8 +176,28 @@ export function AddressInput({
           onFocus={() => suggestions.length > 0 && setIsOpen(true)}
           placeholder={placeholder}
           autoComplete="off"
-          className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+          autoFocus={autoFocus}
+          className={cn(
+            'w-full focus:outline-none transition-all',
+            isCompact
+              ? 'h-8 bg-[#f3ede7] border-none rounded-full pl-8 pr-8 font-sans text-xs text-[#2d2d2d] placeholder:text-[#aaa] focus:ring-1 focus:ring-black/10'
+              : 'bg-background border border-border rounded-xl pl-10 pr-4 py-3.5 text-sm placeholder:text-muted-foreground/40 focus:ring-2 focus:ring-accent/50 focus:border-accent',
+          )}
         />
+        {onClose && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              setSuggestions([])
+              setIsOpen(false)
+              onClose()
+            }}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-[#b0a99e] hover:text-[#2d2d2d] transition-colors"
+          >
+            <X className="h-3.5 w-3.5" strokeWidth={2} />
+          </button>
+        )}
       </div>
 
       {hint && (
@@ -170,18 +208,35 @@ export function AddressInput({
 
       {/* Suggestions dropdown */}
       {isOpen && suggestions.length > 0 && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border border-border rounded-xl shadow-lg overflow-hidden">
+        <div
+          className={cn(
+            'absolute z-50 top-full left-0',
+            isCompact
+              ? 'w-[340px] mt-2 bg-white rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.08)] py-2'
+              : 'right-0 mt-1 bg-background border border-border rounded-xl shadow-lg overflow-hidden',
+          )}
+        >
           {suggestions.map((suggestion, index) => (
             <button
               key={`${suggestion.value}-${index}`}
               type="button"
               onClick={() => handleSelect(suggestion)}
               onMouseEnter={() => setHighlightedIndex(index)}
-              className={`w-full text-left px-4 py-3 text-sm transition-colors ${
-                index === highlightedIndex
-                  ? 'bg-accent/10 text-foreground'
-                  : 'text-foreground/80 hover:bg-secondary/50'
-              } ${index > 0 ? 'border-t border-border/50' : ''}`}
+              className={cn(
+                'w-full text-left transition-colors',
+                isCompact
+                  ? cn(
+                      'px-5 py-2.5 font-sans text-xs text-[#2d2d2d]',
+                      index === highlightedIndex ? 'bg-[#faf5f0]' : 'hover:bg-[#faf5f0]',
+                    )
+                  : cn(
+                      'px-4 py-3 text-sm',
+                      index === highlightedIndex
+                        ? 'bg-accent/10 text-foreground'
+                        : 'text-foreground/80 hover:bg-secondary/50',
+                      index > 0 && 'border-t border-border/50',
+                    ),
+              )}
             >
               {suggestion.value}
             </button>
